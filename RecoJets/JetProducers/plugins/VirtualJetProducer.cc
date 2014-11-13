@@ -38,7 +38,7 @@
 #include "fastjet/CMSIterativeConePlugin.hh"
 #include "fastjet/ATLASConePlugin.hh"
 #include "fastjet/CDFMidPointPlugin.hh"
-
+#include <typeinfo>
 #include <iostream>
 #include <memory>
 #include <algorithm>
@@ -114,7 +114,7 @@ void VirtualJetProducer::makeProduces( std::string alias, std::string tag )
 //______________________________________________________________________________
 VirtualJetProducer::VirtualJetProducer(const edm::ParameterSet& iConfig)
   : moduleLabel_   (iConfig.getParameter<string>       ("@module_label"))
-  , src_           (iConfig.getParameter<edm::InputTag>("src"))
+  , input_candidateview_token_ (consumes<edm::View<reco::PFCandidate> >(iConfig.getParameter<edm::InputTag>("src")))
   , srcPVs_        (iConfig.getParameter<edm::InputTag>("srcPVs"))
   , jetType_       (iConfig.getParameter<string>       ("jetType"))
   , jetAlgorithm_  (iConfig.getParameter<string>       ("jetAlgorithm"))
@@ -282,6 +282,7 @@ VirtualJetProducer::VirtualJetProducer(const edm::ParameterSet& iConfig)
   produces<double>("rho");
   produces<double>("sigma");
 
+//input_candidateview_token_ = consumes<edm::View<reco::PFCandidate> >(src_);
   
 }
 
@@ -336,13 +337,23 @@ void VirtualJetProducer::produce(edm::Event& iEvent,const edm::EventSetup& iSetu
   
   // get inputs and convert them to the fastjet format (fastjet::PeudoJet)
   edm::Handle<reco::CandidateView> inputsHandle;
+  edm::Handle<edm::View<reco::PFCandidate> > inputsHandle2;
   
   edm::Handle< std::vector<edm::FwdPtr<reco::PFCandidate> > > pfinputsHandleAsFwdPtr; 
   
-  bool isView = iEvent.getByLabel(src_,inputsHandle);
-  if ( isView ) {
-    for (size_t i = 0; i < inputsHandle->size(); ++i) {
-      inputs_.push_back(inputsHandle->ptrAt(i));
+ // bool isView = iEvent.getByLabel(src_,inputsHandle);
+//std::cout << "[DEBUG] " << isView << std::endl;
+
+iEvent.getByToken(input_candidateview_token_,inputsHandle2);
+bool isView2 = iEvent.getByToken(input_candidateview_token_,inputsHandle2);
+
+//	std::cout << "[DEBUG] " << typeid(input_candidateview_token_).name() << std::endl ;
+//std::cout << "[DEBUG] " << isView2 << std::endl;
+
+//if(isView2) ;
+  if ( isView2 ) {
+    for (size_t i = 0; i < inputsHandle2->size(); ++i) {
+      inputs_.push_back(inputsHandle2->ptrAt(i));
     }
   } else {
     iEvent.getByLabel(src_,pfinputsHandleAsFwdPtr);

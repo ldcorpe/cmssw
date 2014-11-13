@@ -1,7 +1,7 @@
 import FWCore.ParameterSet.Config as cms
 
 PFClusterJetParameters = cms.PSet( 
-    src            = cms.InputTag('pfClusterRefsForJets'),
+    src            = cms.InputTag('puppi'),
     srcPVs         = cms.InputTag('offlinePrimaryVertices'),
     jetType        = cms.string('PFClusterJet'),
     doOutputJets   = cms.bool(True),

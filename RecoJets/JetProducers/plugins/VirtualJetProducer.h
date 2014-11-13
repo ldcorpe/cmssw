@@ -147,6 +147,7 @@ protected:
   //
 protected:
   std::string           moduleLabel_;               // label for this module
+  edm::EDGetTokenT<edm::View<reco::PFCandidate> > input_candidateview_token_;
   edm::InputTag         src_;                       // input constituent source
   edm::InputTag         srcPVs_;                    // primary vertex source
   std::string           jetType_;                   // type of jet (Calo,PF,Basic,Gen)
@@ -201,7 +202,7 @@ protected:
   int                   verbosity_;                 // flag to enable/disable debug output
 
 private:
-  std::auto_ptr<AnomalousTower>   anomalousTowerDef_;  // anomalous tower definition
+	std::auto_ptr<AnomalousTower>   anomalousTowerDef_;  // anomalous tower definition
 };
 
 
