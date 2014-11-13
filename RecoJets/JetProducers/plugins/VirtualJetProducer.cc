@@ -341,17 +341,12 @@ void VirtualJetProducer::produce(edm::Event& iEvent,const edm::EventSetup& iSetu
   
   edm::Handle< std::vector<edm::FwdPtr<reco::PFCandidate> > > pfinputsHandleAsFwdPtr; 
   
- // bool isView = iEvent.getByLabel(src_,inputsHandle);
-//std::cout << "[DEBUG] " << isView << std::endl;
 
-iEvent.getByToken(input_candidateview_token_,inputsHandle2);
-bool isView2 = iEvent.getByToken(input_candidateview_token_,inputsHandle2);
+  iEvent.getByToken(input_candidateview_token_,inputsHandle2);
+  bool isView = iEvent.getByToken(input_candidateview_token_,inputsHandle2);
 
-//	std::cout << "[DEBUG] " << typeid(input_candidateview_token_).name() << std::endl ;
-//std::cout << "[DEBUG] " << isView2 << std::endl;
 
-//if(isView2) ;
-  if ( isView2 ) {
+  if ( isView ) {
     for (size_t i = 0; i < inputsHandle2->size(); ++i) {
       inputs_.push_back(inputsHandle2->ptrAt(i));
     }
