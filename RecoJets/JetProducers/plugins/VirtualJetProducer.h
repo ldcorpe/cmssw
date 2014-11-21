@@ -24,6 +24,7 @@
 #include <memory>
 #include <vector>
 #include <boost/shared_ptr.hpp>
+#include "DataFormats/PatCandidates/interface/PackedCandidate.h"
 
 
 class VirtualJetProducer : public edm::EDProducer
@@ -148,6 +149,7 @@ protected:
 protected:
   std::string           moduleLabel_;               // label for this module
   edm::EDGetTokenT<edm::View<reco::PFCandidate> > input_candidateview_token_;
+  edm::EDGetTokenT<edm::View<pat::PackedCandidate> > input_PC_token_;
   edm::InputTag         src_;                       // input constituent source
   edm::InputTag         srcPVs_;                    // primary vertex source
   std::string           jetType_;                   // type of jet (Calo,PF,Basic,Gen)

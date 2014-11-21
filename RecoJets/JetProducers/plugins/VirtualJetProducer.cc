@@ -115,6 +115,7 @@ void VirtualJetProducer::makeProduces( std::string alias, std::string tag )
 VirtualJetProducer::VirtualJetProducer(const edm::ParameterSet& iConfig)
   : moduleLabel_   (iConfig.getParameter<string>       ("@module_label"))
   , input_candidateview_token_ (consumes<edm::View<reco::PFCandidate> >(iConfig.getParameter<edm::InputTag>("src")))
+  , input_PC_token_ (consumes<edm::View<pat::PackedCandidate> >(iConfig.getParameter<edm::InputTag>("src")))
   , srcPVs_        (iConfig.getParameter<edm::InputTag>("srcPVs"))
   , jetType_       (iConfig.getParameter<string>       ("jetType"))
   , jetAlgorithm_  (iConfig.getParameter<string>       ("jetAlgorithm"))
@@ -338,19 +339,29 @@ void VirtualJetProducer::produce(edm::Event& iEvent,const edm::EventSetup& iSetu
   // get inputs and convert them to the fastjet format (fastjet::PeudoJet)
   edm::Handle<reco::CandidateView> inputsHandle;
   edm::Handle<edm::View<reco::PFCandidate> > inputsHandle2;
+  edm::Handle<edm::View<pat::PackedCandidate> > inputsHandle3;
   
   edm::Handle< std::vector<edm::FwdPtr<reco::PFCandidate> > > pfinputsHandleAsFwdPtr; 
   
 
-  iEvent.getByToken(input_candidateview_token_,inputsHandle2);
+ iEvent.getByToken(input_candidateview_token_,inputsHandle2);
   bool isView = iEvent.getByToken(input_candidateview_token_,inputsHandle2);
+//  bool isView = iEvent.getByLabel(src_,inputsHandle);
+  
+	iEvent.getByToken(input_PC_token_,inputsHandle3);
+	bool isView2 = iEvent.getByToken(input_PC_token_,inputsHandle3);
+ // bool isView2 = iEvent.getByLabel(src_,inputsHandle);
 
 
   if ( isView ) {
     for (size_t i = 0; i < inputsHandle2->size(); ++i) {
       inputs_.push_back(inputsHandle2->ptrAt(i));
     }
-  } else {
+  } else if (isView2) {
+    for (size_t i = 0; i < inputsHandle3->size(); ++i) {
+      inputs_.push_back(inputsHandle3->ptrAt(i));
+		}
+	} else {
     iEvent.getByLabel(src_,pfinputsHandleAsFwdPtr);
     for (size_t i = 0; i < pfinputsHandleAsFwdPtr->size(); ++i) {
       if ( (*pfinputsHandleAsFwdPtr)[i].ptr().isAvailable() ) {
