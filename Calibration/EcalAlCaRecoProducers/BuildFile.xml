@@ -34,7 +34,6 @@
 <use   name="clhep"/>
 <flags   EDM_PLUGIN="1"/>
 <use   name="SimDataFormats/GeneratorProducts"/>
-#<use   name="Utilities/Timing"/>
 <use name="FWCore/ServiceRegistry"/> 
 <use name="DataFormats/HepMCCandidate"/>
 <use   name="root"/>
