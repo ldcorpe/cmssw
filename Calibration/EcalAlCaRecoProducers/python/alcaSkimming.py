@@ -604,8 +604,6 @@ process.pathWElectronGen = cms.Path(process.filterSeq * process.FilterSeq *
                                     process.GenWSkimFilter
                                     )
 
-
-
 # ALCARAW
 if (re.match("CMSSW_7_.*",CMSSW_VERSION)):
     #uncalibRecHitSeq = cms.Sequence( (ecalDigis + ecalPreshowerDigis) * ecalUncalibRecHitSequence)  #containing the new local reco for 72X
