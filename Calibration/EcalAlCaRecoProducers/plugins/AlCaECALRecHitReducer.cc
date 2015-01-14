@@ -1,21 +1,12 @@
 #include "Calibration/EcalAlCaRecoProducers/plugins/AlCaECALRecHitReducer.h"
-#include "DataFormats/EgammaCandidates/interface/GsfElectron.h"
+//#include "DataFormats/EgammaCandidates/interface/GsfElectron.h"
 #include "DataFormats/EgammaCandidates/interface/GsfElectronFwd.h"
-#include "DataFormats/EgammaCandidates/interface/SiStripElectron.h"
-#include "DataFormats/EgammaCandidates/interface/Electron.h"
-#include "DataFormats/EgammaCandidates/interface/ElectronFwd.h"
 #include "FWCore/MessageLogger/interface/MessageLogger.h"
 #include "DataFormats/EcalRecHit/interface/EcalRecHitCollections.h"
 #include "DataFormats/EgammaReco/interface/BasicCluster.h"
-#include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
-#include "Geometry/CaloGeometry/interface/CaloGeometry.h"
-#include "Geometry/CaloGeometry/interface/CaloCellGeometry.h"
-#include "Geometry/EcalAlgo/interface/EcalPreshowerGeometry.h"
-#include "Geometry/CaloTopology/interface/EcalPreshowerTopology.h"
-#include "Geometry/Records/interface/CaloGeometryRecord.h"
+#include "DataFormats/EcalDetId/interface/EcalSubdetector.h"
 #include "Geometry/CaloEventSetup/interface/CaloTopologyRecord.h"
 #include "FWCore/Framework/interface/ESHandle.h"
-//#include "Geometry/CaloTopology/interface/EcalBarrelTopology.h"
 
 //#define ALLrecHits
 //#define DEBUG
@@ -69,8 +60,8 @@ AlCaECALRecHitReducer::produce (edm::Event& iEvent,
   EcalRecHitCollection::const_iterator recHit_itr;
 
   // get the ECAL geometry:
-  ESHandle<CaloGeometry> geoHandle;
-  iSetup.get<CaloGeometryRecord>().get(geoHandle);
+  //ESHandle<CaloGeometry> geoHandle;
+  //iSetup.get<CaloGeometryRecord>().get(geoHandle);
 
   edm::ESHandle<CaloTopology> theCaloTopology;
   iSetup.get<CaloTopologyRecord>().get(theCaloTopology);

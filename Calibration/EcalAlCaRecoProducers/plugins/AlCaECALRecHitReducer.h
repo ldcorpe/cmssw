@@ -53,28 +53,8 @@ class AlCaECALRecHitReducer : public edm::EDProducer {
       ~AlCaECALRecHitReducer();
 
  
-//PG       void beginJob (const edm::EventSetup&)
-//PG         {
-//PG           std::cerr << "saveTest beginJob" << std::endl ;
-//PG           m_failMap = new TH2F ("failMap","failMap",100,0,100,100,0,100) ;
-//PG           std::cerr << "saveTest beginJob " << m_failMap->GetEntries () << std::endl ;
-//PG         }
       //! producer
       virtual void produce(edm::Event &, const edm::EventSetup&);
-//PG       void endJob () 
-//PG         {
-//PG           std::cerr << "saveTest endJob" << std::endl ;
-//PG           TCanvas c1 ;
-//PG           c1.cd () ;
-//PG           m_failMap->Draw ("BOX") ;
-//PG           c1.Print ("fail.eps","eps") ;
-//PG           TDirectory * curr = gDirectory ;
-//PG           TFile * saveTest = new TFile ("fail.root","recreate") ;
-//PG           saveTest->cd () ;
-//PG           m_failMap->Write () ;
-//PG           curr->cd () ;
-//PG           saveTest->Close () ;
-//PG         }
 
    private:
       // ----------member data ---------------------------

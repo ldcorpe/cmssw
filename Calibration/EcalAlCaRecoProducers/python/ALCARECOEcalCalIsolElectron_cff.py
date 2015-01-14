@@ -28,6 +28,9 @@ from Calibration.EcalAlCaRecoProducers.alCaIsolatedElectrons_cfi import *
 from Calibration.EcalAlCaRecoProducers.AlCaElectronTracksReducer_cfi import *
 from Calibration.EcalAlCaRecoProducers.eleIsoSequence_cff import *
 
+    
+from Calibration.EcalAlCaRecoProducers.WZElectronSkims_cff import *
+
 from RecoJets.Configuration.RecoPFJets_cff import kt6PFJets
 kt6PFJetsForRhoCorrection = kt6PFJets.clone(doRhoFastjet = True)
 kt6PFJetsForRhoCorrection.Rho_EtaMax = cms.double(2.5)
