@@ -2,6 +2,13 @@ import FWCore.ParameterSet.Config as cms
 
 HLTPath = "HLT_Ele*"
 HLTProcessName = "HLT"
+myEleCollection =  cms.InputTag("gedGsfElectrons")
+
+MinEleNumberFilter = cms.EDFilter("CandViewCountFilter",
+                                          src = myEleCollection,
+                                          minNumber = cms.uint32(1)
+                                          )
+filterSeq = cms.Sequence(MinEleNumberFilter)
 
 ##    ____      __ _____ _           _                   
 ##   / ___|___ / _| ____| | ___  ___| |_ _ __ ___  _ __  
@@ -36,7 +43,7 @@ GsfMatchedPhotonCands = cms.EDProducer("ElectronMatchedCandidateProducer",
 ##   
 # Trigger  ##################
 PassingHLT = cms.EDProducer("trgMatchGsfElectronProducer",    
-    InputProducer = cms.InputTag( 'gedGsfElectrons' ),                          
+    InputProducer = myEleCollection,
     hltTags = cms.untracked.string( HLTPath ),
     triggerEventTag = cms.untracked.InputTag("hltTriggerSummaryAOD","",HLTProcessName),
     triggerResultsTag = cms.untracked.InputTag("TriggerResults","",HLTProcessName)   
@@ -63,7 +70,7 @@ ZSCHltFilter = HLTrigger.HLTfilters.hltHighLevel_cfi.hltHighLevel.clone(
 
 
 selectedElectrons = cms.EDFilter("GsfElectronRefSelector",
-                                 src = cms.InputTag( 'gedGsfElectrons' ),
+                                 src = myEleCollection,
                                  cut = cms.string(
 #    "(abs(superCluster.eta)<2.5) && (energy*sin(superClusterPosition.theta)> 15)")
     "(abs(superCluster.eta)<3) && (energy*sin(superClusterPosition.theta)> 15)")

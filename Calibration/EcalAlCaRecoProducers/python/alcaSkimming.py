@@ -331,11 +331,6 @@ if(MC):
     
 process.load('Calibration.EcalAlCaRecoProducers.WZElectronSkims_cff')
 
-process.MinEleNumberFilter = cms.EDFilter("CandViewCountFilter",
-                                          src = myEleCollection,
-                                          minNumber = cms.uint32(1)
-                                          )
-process.filterSeq = cms.Sequence(process.MinEleNumberFilter)
 
 if (HLTFilter):
     from HLTrigger.HLTfilters.hltHighLevel_cfi import *

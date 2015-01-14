@@ -28,6 +28,7 @@ from Calibration.EcalAlCaRecoProducers.alCaIsolatedElectrons_cfi import *
 from Calibration.EcalAlCaRecoProducers.AlCaElectronTracksReducer_cfi import *
 from Calibration.EcalAlCaRecoProducers.eleIsoSequence_cff import *
 
+PUDumperSeq = cms.Sequence()
     
 from Calibration.EcalAlCaRecoProducers.WZElectronSkims_cff import *
 
