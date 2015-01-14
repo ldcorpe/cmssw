@@ -4,9 +4,8 @@ import copy
 
 OutALCARECOEcalUncalElectron_noDrop=copy.deepcopy(OutALCARECOEcalCalElectron_noDrop)
 OutALCARECOEcalUncalElectron_noDrop.outputCommands+=cms.untracked.vstring(
+    'keep *_ecalDigis_*_*',
     'keep *EcalTriggerPrimitiveDigi*_ecalDigis_*_*',
-    'keep *_ecalGlobalUncalibRecHit_*_*',
-    'keep *_ecalMultiFitUncalibRecHit_*_*', 
     'keep *_ecalPreshowerDigis_*_*',
     'keep *_ecalDetIdToBeRecovered_*_*',
     'keep reco*Clusters_pfElectronTranslator_*_*'

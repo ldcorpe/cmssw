@@ -1,7 +1,13 @@
 import FWCore.ParameterSet.Config as cms
 
-        
+from Configuration.StandardSequences.Reconstruction_Data_cff import ecalLocalRecoSequence pfClusteringPS pfClusteringECAL ecalClusters
+
 from RecoLocalCalo.Configuration.RecoLocalCalo_cff import *
+recoECAL = cms.Sequence(ecalLocalRecoSequence* (pfClusteringPS+pfClusteringECAL)+ecalClusters)
+
+
+#globalreco = cms.Sequence(particleFlowCluster*ecalClusters*egammaGlobalReco*
+
 #ecalRecHit.EBuncalibRecHitCollection = cms.InputTag("ecalGlobalUncalibRecHit","EcalUncalibRecHitsEB","ALCASKIM")
 #ecalRecHit.EEuncalibRecHitCollection = cms.InputTag("ecalGlobalUncalibRecHit","EcalUncalibRecHitsEE","ALCASKIM")
 electronRecoSeq = cms.Sequence( ecalRecHit * ecalCompactTrigPrim * ecalTPSkim + ecalPreshowerRecHit)
