@@ -159,10 +159,10 @@ eleSC = cms.EDProducer('ConcreteEcalCandidateProducer',
                   particleType = cms.string('gamma')
                   )
 
-selectedCands = cms.EDFilter("AssociatedVariableMaxCutCandRefSelector",
-                             src = cms.InputTag("eleSelectionProducers:loose"),
-                             max = cms.double("0.5")
-                             )
+# selectedCands = cms.EDFilter("AssociatedVariableMaxCutCandRefSelector",
+#                              src = cms.InputTag("eleSelectionProducers:loose"),
+#                              max = cms.double("0.5")
+#                              )
 
 eleSelSeq = cms.Sequence( selectedElectrons + PassingVeryLooseId + PassingTightId + 
                           (SCselector*eleSC)
