@@ -162,19 +162,30 @@ void ElectronRecalibSuperClusterAssociator::produce(edm::Event& e, const edm::Ev
 #ifdef DEBUG
 	std::cout << "Starting Association is with EB superCluster "<< std::endl;
 #endif  
-	reco::GsfElectronCore newEleCore(*(eleIt->core()));
+	
+	pOutEleCore->push_back(*eleIt->core());
+	std::cout << "pushed" << std::endl;
+	reco::GsfElectronCore & newEleCore = pOutEleCore->back();
+	std::cout << "backed" << std::endl;
 	newEleCore.setGsfTrack(eleIt->gsfTrack());           // gsf track
+	std::cout << "set gsf track ref" << std::endl;
 	newEleCore.setSuperCluster(eleIt->superCluster());   // refined supercluster
+	
 	reco::SuperClusterRef scRef(reco::SuperClusterRef(superClusterEBHandle, iscRef));  
 #ifndef CMSSW_5_3_X
         newEleCore.setParentSuperCluster(scRef);             // mustache 
 #endif
-	pOutEleCore->push_back(newEleCore);
-	reco::GsfElectronCoreRef newEleCoreRef = edm::Ref<GsfElectronCoreCollection>(&(*pOutEleCore), idxEleCore++);
-	std::cout << newEleCore.gsfTrack()->pMode() << std::endl;
-	std::cout << newEleCoreRef->gsfTrack()->pMode() << std::endl;
+
+	//	continue; 
+	std::cout << "take reference to core" << std::endl;
+	reco::GsfElectronCoreRef newEleCoreRef(rEleCore, idxEleCore++);
+	std::cout << "ref made" << std::endl;
 	reco::GsfElectron newEle(*eleIt,newEleCoreRef);
+	std::cout << "created ele" << std::endl;
+	//	std::cout << newEleCore.gsfTrack()->pMode() << std::endl;
+	//std::cout << newEleCoreRef->gsfTrack()->pMode() << std::endl;
 	
+	continue;
 	//-- first possibility: set the new p4SC using refined SC
 	
 	//newEle.setP4(reco::GsfElectron::P4_FROM_SUPER_CLUSTER, eleIt->p4(reco::GsfElectron::P4_FROM_SUPER_CLUSTER)); //*newEle.superCluster()->energy()/eleIt->superCluster()->energy());
@@ -192,6 +203,7 @@ void ElectronRecalibSuperClusterAssociator::produce(edm::Event& e, const edm::Ev
 	pOutEle->push_back(newEle);
       }  else if(!(eleIt->isEB()) && nearestSCendcap)
 	{
+	  continue;
 #ifdef DEBUG
 	  std::cout << "Starting Association is with EE superCluster "<< std::endl;
 #endif  
@@ -204,11 +216,12 @@ void ElectronRecalibSuperClusterAssociator::produce(edm::Event& e, const edm::Ev
 	  newEleCore.setSuperCluster(scRef);
 	  newEleCore.setParentSuperCluster(scRef);
 	  std::cout << "new sc ref to ele core" << std::endl;
-	  //reco::GsfElectronCoreRef newEleCoreRef = edm::Ref<GsfElectronCoreCollection>(&(*pOutEleCore), idxEleCore++);
-	  reco::GsfElectronCoreRef newEleCoreRef(rEleCore, idxEleCore++);
+	  reco::GsfElectronCoreRef newEleCoreRef = edm::Ref<GsfElectronCoreCollection>(&(*pOutEleCore), idxEleCore++);
+	  //reco::GsfElectronCoreRefProd newEleCoreRef(rEleCore, idxEleCore++);
 	  std::cout << "new ele core ref" << std::endl;
 	  pOutEleCore->push_back(newEleCore);
 	  std::cout << "pushed back" << std::endl;
+	  //continue;
 	  reco::GsfElectron newEle(*eleIt,newEleCoreRef);
 #ifdef DEBUG
 	  //	  assert(newEle.superCluster()->seed()!=NULL);
@@ -223,7 +236,7 @@ void ElectronRecalibSuperClusterAssociator::produce(edm::Event& e, const edm::Ev
 	//newEle.setCorrectedEcalEnergy(eleIt->ecalEnergy()*(newEle.parentSuperCluster()->energy()/
 	//						   eleIt->parentSuperCluster()->energy()));
 	//newEle.setCorrectedEcalEnergyError(eleIt->ecalEnergyError()*(nearestSCbarrel->energy()/eleIt->ecalEnergy()));
-	pOutEle->push_back(newEle);
+	  //	pOutEle->push_back(newEle);
 	}else{
 	edm::LogError("Failed SC association") << "No SC to be associated to the electron";
       }
@@ -241,6 +254,7 @@ void ElectronRecalibSuperClusterAssociator::produce(edm::Event& e, const edm::Ev
 
   e.put(pOutEle);
   e.put(pOutEleCore);
+  
   //  e.put(pOutNewEndcapSC);
   
 }
