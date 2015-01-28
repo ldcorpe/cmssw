@@ -159,6 +159,15 @@ PassingTightId = selectedElectrons.clone(
     )
     )
 
+PassingPhotonVeryLooseId = selectedPhotons.clone(
+    cut = cms.string(
+    selectedPhotons.cut.value() +
+    "&& ( (eta<1.479 && sigmaIetaIeta<0.02 && hadronicOverEm<0.06 )"
+    "||"
+    "( eta>=1.479 && sigmaIetaIeta<0.04 && hadronicOverEm<0.06 ) )"
+    )
+    )
+
 #------------------------------ electronID producer
 SCselector = cms.EDFilter("SuperClusterSelector",
                           src = cms.InputTag('correctedMulti5x5SuperClustersWithPreshower'),
