@@ -75,6 +75,18 @@ selectedElectrons = cms.EDFilter("GsfElectronRefSelector",
 #    "(abs(superCluster.eta)<2.5) && (energy*sin(superClusterPosition.theta)> 15)")
     "(abs(superCluster.eta)<3) && (energy*sin(superClusterPosition.theta)> 15)")
                                          )
+
+selectedMuons = cms.EDFilter("MuonRefSelector",
+                                 src = cms.InputTag( 'muons' ),
+                                 cut = cms.string("")
+                                         )
+
+selectedPhotons = cms.EDFilter("PhotonRefSelector",
+                                 src = cms.InputTag( 'gedPhotons' ),
+                                 cut = cms.string(
+    "(abs(superCluster.eta)<3) && (pt > 10)")
+                                         )
+
 # This are the cuts at trigger level except ecalIso
 PassingVeryLooseId = selectedElectrons.clone(
     cut = cms.string(
@@ -164,7 +176,11 @@ eleSC = cms.EDProducer('ConcreteEcalCandidateProducer',
 #                              max = cms.double("0.5")
 #                              )
 
-eleSelSeq = cms.Sequence( selectedElectrons + PassingVeryLooseId + PassingTightId + 
+eleSelSeq = cms.Sequence( selectedElectrons + PassingVetoId +
+                          (SCselector*eleSC)
+                          )
+
+muSelSeq = cms.Sequence( selectedMuons + selectedPhotons + PassingMuonVeryLooseId + PassingPhotonVeryLooseId +
                           (SCselector*eleSC)
                           )
 

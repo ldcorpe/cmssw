@@ -329,8 +329,20 @@ if(MC):
         )
     process.PUDumperSeq *= process.PUDumper
     
-process.load('Calibration.EcalAlCaRecoProducers.WZElectronSkims_cff')
+if(re.match("CMSSW_5_.*", CMSSW_VERSION)):
+    process.load('Calibration.EcalAlCaRecoProducers.WZElectronSkims53X_cff')
+else:
+    process.load('Calibration.EcalAlCaRecoProducers.WZElectronSkims_cff')
 
+process.load('DPGAnalysis.Skims.ZmmgSkim_cff')
+process.MinMuonNumberFilter = cms.EDFilter("CandViewCountFilter",
+                                          src = cms.InputTag("muons"),
+                                          minNumber = cms.uint32(2))
+process.MinPhoNumberFilter = cms.EDFilter("CandViewCountFilter",
+                                          src = cms.InputTag("gedPhotons"),
+                                          minNumber = cms.uint32(1))
+if (ZmmgSkim==True):
+    process.filterSeq += cms.Sequence(process.MinMuonNumberFilter * process.MinPhoNumberFilter)
 
 if (HLTFilter):
     from HLTrigger.HLTfilters.hltHighLevel_cfi import *
@@ -404,7 +416,9 @@ process.rhoFastJetSeq = cms.Sequence()
 if((not options.type=="ALCARERECO") ):
     process.rhoFastJetSeq = cms.Sequence(process.kt6PFJetsForRhoCorrection) 
 
-
+if (options.skim=="ZmmgSkim"):
+    process.patSequence=cms.Sequence( (process.muonSelectionProducers * process.phoSelectionProducers) * process.patMuons * process.patPhotons )
+    process.patSequenceMC=cms.Sequence( process.muonMatch * process.photonMatch * (process.muonSelectionProducers * process.phoSelectionProducers ) * process.patMuons * process.patPhotons )
 if(MC):
     process.ntupleSeq = cms.Sequence(process.jsonFilter * process.patSequenceMC)
 else:
@@ -643,6 +657,12 @@ else:
                                                    ~process.ZeeFilter * ~process.ZSCFilter * process.WenuFilter *
                                                    (process.ALCARECOEcalCalElectronPreSeq +
                                                     process.seqALCARECOEcalUncalElectron ))
+    process.pathALCARECOEcalUncalZmmgPhoton = cms.Path( process.PUDumperSeq *
+                                                   process.filterSeq * process.FilterMuSeq * process.ZmmgSkimSeq * 
+                                                   ~process.ZeeFilter * ~process.ZSCFilter * ~process.WenuFilter *
+                                                   process.pfIsoEgamma *
+                                                   process.seqALCARECOEcalUncalElectron ) #* process.hltReporter)
+
 
 # ALCARERECO
 process.pathALCARERECOEcalCalElectron = cms.Path(process.alcarerecoSeq)
@@ -668,6 +688,11 @@ process.pathALCARECOEcalCalZSCElectron = cms.Path( process.PUDumperSeq *
 #                                                   process.ZSCHltFilter *
                                                    process.pfIsoEgamma *
                                                    process.seqALCARECOEcalCalElectron ) #* process.hltReporter)
+process.pathALCARECOEcalCalZmmgPhoton = cms.Path( process.PUDumperSeq *
+                                                   process.filterSeq * process.FilterMuSeq * process.ZmmgSkimSeq * 
+                                                   ~process.ZeeFilter * ~process.ZSCFilter * ~process.WenuFilter *
+                                                   process.pfIsoEgamma *
+                                                   process.seqALCARECOEcalCalPhoton ) #* process.hltReporter)
 
 
 process.NtuplePath = cms.Path(process.filterSeq * process.FilterSeq *  process.NtupleFilterSeq 
