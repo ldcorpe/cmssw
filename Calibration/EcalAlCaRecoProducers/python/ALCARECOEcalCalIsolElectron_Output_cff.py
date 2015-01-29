@@ -12,7 +12,10 @@ OutALCARECOEcalCalElectron_specific = cms.untracked.vstring(
     'drop *_*Unclean*_*_*',
     'drop *_*unclean*_*_*',
     'drop *_*_*Unclean*_*',
-    'drop *_*_*unclean*_*'
+    'drop *_*_*unclean*_*',
+    'drop *CaloCluster*_*particleFlowEGamma*_*EBEEClusters*_*',
+    'drop *CaloCluster*_*particleFlowEGamma*_*ESClusters*_*',
+    'keep *CaloCluster*_*alCaIsolatedElectrons*_*alcaCaloCluster*_*'
 )
 
 OutALCARECOEcalCalElectron_noDrop = cms.PSet(

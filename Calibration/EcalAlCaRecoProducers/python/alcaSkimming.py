@@ -30,7 +30,7 @@ options.register('skim',
                  "", 
                  VarParsing.VarParsing.multiplicity.singleton,
                  VarParsing.VarParsing.varType.string,
-                 "type of skim: ZSkim, WSkim, ZHLTSkim, partGun, EleSkim (at least one electron), ''")
+                 "type of skim: ZSkim, WSkim, ZHLTSkim, partGun, ZmmgSkim, EleSkim (at least one electron), ''")
 options.register('jsonFile',
                  "",
                  VarParsing.VarParsing.multiplicity.singleton,
@@ -69,6 +69,7 @@ print options
 HLTFilter = False
 ZSkim = False
 WSkim = False
+ZmmgSkim = False
 
 if(options.skim=="ZSkim"):
     ZSkim=True
@@ -76,6 +77,8 @@ elif(options.skim=="WSkim"):
     WSkim=True
 elif(options.skim=="ZHLTSkim"):
     HLTFilter=True
+elif(options.skim=="ZmmgSkim"):
+    ZmmgSkim=True
 else:
     if(options.type=="ALCARAW"):
         print "[ERROR] no skim selected"
@@ -389,6 +392,10 @@ elif(WSkim):
     process.NtupleFilterSeq = cms.Sequence(process.WZFilter)
     #    process.NtupleFilterSeq= cms.Sequence(process.NtupleFilter)
     process.NtupleFilter.HLTPaths = [ 'pathALCARECOEcalCalWElectron', 'pathALCARECOEcalUncalWElectron' ]
+elif(ZmmgSkim):
+    process.NtupleFilterSeq = cms.Sequence(process.ZmmgSkimSeq)
+    process.NtupleFilter.HLTPaths = [ 'pathALCARECOEcalCalZmmgPhoton', 'pathALCARECOEcalUncalZmmgPhoton' ]
+
 elif(options.skim=="no" or options.skim=="NO" or options.skim=="none" or options.skim=="NONE"):
     process.NtupleFilterSeq = cms.Sequence()
 
@@ -546,54 +553,9 @@ process.GenZSCSkimFilter = cms.EDFilter("SkimCheck",
 process.GenWSkimFilter =  cms.EDFilter("SkimCheck",
                                        type= cms.int32(1)
                                        )
-
-
-if (re.match("CMSSW_7_.*_.*",CMSSW_VERSION)):
-  # This are the cuts at trigger level except ecalIso  
-  process.PassingVeryLooseId.cut = cms.string(
-    process.selectedElectrons.cut.value() +
-    " && (gsfTrack.hitPattern().numberOfHits(\'MISSING_INNER_HITS\')<=1)" #wrt std WP90 allowing 1 numberOfMissingExpectedHits  
-    " && ((isEB"
-    " && ( dr03TkSumPt/p4.Pt <0.2 "#&& dr03EcalRecHitSumEt/p4.Pt < 0.3
-    " && dr03HcalTowerSumEt/p4.Pt  < 0.2 )"
-    " && (sigmaIetaIeta<0.01)"
-    " && ( -0.15<deltaPhiSuperClusterTrackAtVtx<0.15 )"
-    " && ( -0.007<deltaEtaSuperClusterTrackAtVtx<0.007 )"
-    " && (hadronicOverEm<0.12)"
-    ")"
-    " || (isEE"
-    " && ( dr03TkSumPt/p4.Pt <0.2"
-    #&& dr03EcalRecHitSumEt/p4.Pt < 0.3 
-    " && dr03HcalTowerSumEt/p4.Pt  < 0.2 )"
-    " && (sigmaIetaIeta<0.03)"
-    " && ( -0.10<deltaPhiSuperClusterTrackAtVtx<0.10 )"
-    " && ( -0.009<deltaEtaSuperClusterTrackAtVtx<0.009 )"
-    " && (hadronicOverEm<0.10) "
-    "))"
-    )
-
-  process.PassingTightId.cut = cms.string(
-    process.selectedElectrons.cut.value() +
-    " && (gsfTrack.hitPattern().numberOfHits(\'MISSING_INNER_HITS\')<=0)" #wrt std WP90 allowing 1 numberOfMissingExpectedHits
-    " && ((isEB"
-    " && ( dr03TkSumPt/p4.Pt <0.2 "#&& dr03EcalRecHitSumEt/p4.Pt < 0.3
-    " && dr03HcalTowerSumEt/p4.Pt  < 0.2 )"
-    " && (sigmaIetaIeta<0.01)"
-    " && ( -0.03<deltaPhiSuperClusterTrackAtVtx<0.03 )"
-    " && ( -0.004<deltaEtaSuperClusterTrackAtVtx<0.004 )"
-    " && (hadronicOverEm<0.12)"
-    ")"
-    " || (isEE"
-    " && ( dr03TkSumPt/p4.Pt <0.2"
-    #&& dr03EcalRecHitSumEt/p4.Pt < 0.3
-    " && dr03HcalTowerSumEt/p4.Pt  < 0.2 )"
-    " && (sigmaIetaIeta<0.03)"
-    " && ( -0.02<deltaPhiSuperClusterTrackAtVtx<0.02 )"
-    " && ( -0.007<deltaEtaSuperClusterTrackAtVtx<0.007 )"
-    " && (hadronicOverEm<0.10) "
-    "))"
-    )
-    
+process.GenZmmgSkimFilter =  cms.EDFilter("SkimCheck",
+                                       type= cms.int32(1)
+                                       )
 
 
 process.pathZElectronSkimGen = cms.Path(process.filterSeq * process.FilterSeq *
@@ -612,6 +574,11 @@ process.pathZElectronSkim = cms.Path(process.filterSeq * process.FilterSeq *
                                            process.ZeeFilter
 #                                           process.GenSkimFilter
                                            )
+process.pathZmmgSkim = cms.Path(process.filterSeq * process.FilterMuSeq * process.ZmmgSkimSeq *
+                                    process.GenZmmgSkimFilter *
+                                ~process.ZeeFilter * ~process.ZSCFilter * ~process.WenuFilter * process.ZmmgSkimSeq
+                                    )
+
 process.pathZSCElectronSkim = cms.Path(process.filterSeq * process.FilterSeq * process.MinZSCNumberFilter *
                                              ~process.ZeeFilter * process.ZSCFilter
 #                                             process.GenZSCSkimFilter
@@ -620,6 +587,10 @@ process.pathWElectronSkim = cms.Path(process.filterSeq * process.FilterSeq *
                                            ~process.ZeeFilter * ~process.ZSCFilter * process.WenuFilter
 #                                           process.GenWSkimFilter
                                            )
+process.pathZmmgSkim = cms.Path(process.filterSeq * process.ZmmgSkimSeq *
+                                ~process.ZeeFilter * ~process.ZSCFilter * ~process.WenuFilter * process.ZmmgSkimSeq
+                                    )
+
 process.pathZElectronGen = cms.Path(process.filterSeq * process.FilterSeq *
                                     process.GenSkimFilter
                                     )
@@ -629,6 +600,11 @@ process.pathZSCElectronGen = cms.Path(process.filterSeq * process.FilterSeq * pr
 process.pathWElectronGen = cms.Path(process.filterSeq * process.FilterSeq *
                                     process.GenWSkimFilter
                                     )
+process.pathZmmgGen = cms.Path(process.filterSeq * process.FilterMuSeq * process.ZmmgSkimSeq *
+                                    process.GenZmmgSkimFilter
+                                    )
+
+
 
 # ALCARAW
 if (re.match("CMSSW_7_.*",CMSSW_VERSION)):
@@ -652,6 +628,11 @@ if (re.match("CMSSW_7_.*",CMSSW_VERSION)):
                                                    ~process.ZeeFilter * ~process.ZSCFilter * process.WenuFilter *
                                                    (process.ALCARECOEcalCalElectronPreSeq +
                                                     uncalibRecHitSeq ))
+    process.pathALCARECOEcalUncalZmmgPhoton = cms.Path( process.PUDumperSeq * process.filterSeq * process.FilterMuSeq * process.ZmmgSkimSeq *
+                                                   process.pfIsoEgamma *
+                                                   ~process.ZeeFilter * ~process.ZSCFilter * ~process.WenuFilter *
+                                                   (process.ALCARECOEcalCalElectronPreSeq +
+                                                    uncalibRecHitSeq ))
 
 else:
 
@@ -673,7 +654,7 @@ else:
                                                    ~process.ZeeFilter * ~process.ZSCFilter * process.WenuFilter *
                                                    (process.ALCARECOEcalCalElectronPreSeq +
                                                     process.seqALCARECOEcalUncalElectron ))
-    process.pathALCARECOEcalUncalZmmgPhoton = cms.Path( process.PUDumperSeq *
+    process.pathALCARECOEcalCalZmmgPhoton = cms.Path( process.PUDumperSeq *
                                                    process.filterSeq * process.FilterMuSeq * process.ZmmgSkimSeq * 
                                                    ~process.ZeeFilter * ~process.ZSCFilter * ~process.WenuFilter *
                                                    process.pfIsoEgamma *
@@ -706,15 +687,20 @@ process.pathALCARECOEcalCalZSCElectron = cms.Path( process.PUDumperSeq *
                                                    process.seqALCARECOEcalCalElectron ) #* process.hltReporter)
 process.pathALCARECOEcalCalZmmgPhoton = cms.Path( process.PUDumperSeq *
                                                    process.filterSeq * process.FilterMuSeq * process.ZmmgSkimSeq * 
-                                                   ~process.ZeeFilter * ~process.ZSCFilter * ~process.WenuFilter *
                                                    process.pfIsoEgamma *
                                                    process.seqALCARECOEcalCalPhoton ) #* process.hltReporter)
 
-
-process.NtuplePath = cms.Path(process.filterSeq * process.FilterSeq *  process.NtupleFilterSeq 
-#                              * process.pfIsoEgamma 
-#                              * process.seqALCARECOEcalCalElectron 
+if (options.skim=="ZmmgSkim"):
+    process.NtuplePath = cms.Path(process.filterSeq * process.FilterMuSeq *  process.NtupleFilterSeq 
+                                  #                              * process.pfIsoEgamma 
+                                  #                              * process.seqALCARECOEcalCalElectron 
                               * process.pdfWeightsSeq * process.ntupleSeq)
+else:
+    process.NtuplePath = cms.Path(process.filterSeq * process.FilterSeq *  process.NtupleFilterSeq 
+                                  #                              * process.pfIsoEgamma 
+                                  #                              * process.seqALCARECOEcalCalElectron 
+                              * process.pdfWeightsSeq * process.ntupleSeq)
+
 process.NtupleEndPath = cms.EndPath( process.zNtupleDumper)
 
 
@@ -760,6 +746,13 @@ elif(options.skim=='ZSkim'):
     process.outputALCARECO.SelectEvents = cms.untracked.PSet(
         SelectEvents = cms.vstring('pathALCARECOEcalCalZElectron', 'pathALCARECOEcalCalZSCElectron')
         )
+elif(options.skim=='ZmmgSkim'):
+    process.outputALCARAW.SelectEvents = cms.untracked.PSet(
+        SelectEvents = cms.vstring('pathALCARECOEcalUncalZmmgPhoton')
+        )
+    process.outputALCARECO.SelectEvents = cms.untracked.PSet(
+        SelectEvents = cms.vstring('pathALCARECOEcalCalZmmgPhoton')
+        )
 else:
     #if(options.skim=="" or options.skim=="none" or options.skim=="no" or options.skim=="partGun"):
     process.outputALCARAW.SelectEvents = cms.untracked.PSet(
@@ -775,9 +768,11 @@ if(options.type=='ALCARAW'):
         #process.reconstruction_step,process.endjob_step, 
         process.pathALCARECOEcalUncalZElectron, process.pathALCARECOEcalUncalWElectron,
         process.pathALCARECOEcalUncalZSCElectron,
+        process.pathALCARECOEcalUncalZmmgPhoton,
         process.ALCARAWoutput_step,
         process.pathALCARECOEcalCalZElectron,  process.pathALCARECOEcalCalWElectron,
         process.pathALCARECOEcalCalZSCElectron,
+        process.pathALCARECOEcalCalZmmgPhoton,
         process.ALCARECOoutput_step, process.NtuplePath) # fix the output modules
     
 
@@ -795,15 +790,15 @@ elif(options.type=='ALCARECO' or options.type=='ALCARECOSIM'):
     else:
         if(options.doTree==0):
             process.schedule = cms.Schedule(process.pathALCARECOEcalCalZElectron,  process.pathALCARECOEcalCalWElectron,
-                                            process.pathALCARECOEcalCalZSCElectron,
+                                            process.pathALCARECOEcalCalZSCElectron, process.pathALCARECOEcalCalZmmgPhoton,
                                             process.ALCARECOoutput_step
                                             ) # fix the output modules
         else:
             process.schedule = cms.Schedule(process.pathALCARECOEcalCalZElectron,  process.pathALCARECOEcalCalWElectron,
-                                            process.pathALCARECOEcalCalZSCElectron,
+                                            process.pathALCARECOEcalCalZSCElectron, process.pathALCARECOEcalCalZmmgPhoton,
                                             process.ALCARECOoutput_step,  process.NtuplePath, process.NtupleEndPath
                                             ) # fix the output modules
-        if(options.skim=="" or options.skim=="ZHLTSkim"):
+        if(options.skim=="" or options.skim=="ZHLTSkim" or options.skim=="partGun"):
             process.schedule += cms.Schedule(process.pathALCARECOEcalCalSingleElectron)
 elif(options.type=='SKIMEFFTEST'):
     process.schedule = cms.Schedule(process.pathWElectronSkimGen, process.pathZSCElectronSkimGen, process.pathZElectronSkimGen,
@@ -865,9 +860,12 @@ if(re.match("CMSSW_4_2_.*", CMSSW_VERSION)):
 # Setting collection names
 ##############################
 process.selectedElectrons.src = myEleCollection
-process.PassingVeryLooseId.src = myEleCollection
-process.PassingMediumId.src = myEleCollection
-process.PassingTightId.src = myEleCollection
+if(re.match("CMSSW_5_.*", CMSSW_VERSION)):
+    process.PassingVeryLooseId.src = myEleCollection
+    process.PassingMediumId.src = myEleCollection
+    process.PassingTightId.src = myEleCollection
+else:
+    process.PassingVetoId.src = myEleCollection
 process.PassingHLT.InputProducer = myEleCollection
 
 process.eleRegressionEnergy.inputElectronsTag = myEleCollection
@@ -876,6 +874,8 @@ process.patElectrons.electronSource = myEleCollection
 process.electronMatch.src = myEleCollection
 process.eleNewEnergiesProducer.electronCollection = myEleCollection
 process.alCaIsolatedElectrons.electronLabel = myEleCollection 
+if (options.skim=="ZmmgSkim"):
+    process.alCaIsolatedElectrons.photonLabel = cms.InputTag("gedPhotons")
 process.alcaElectronTracksReducer.electronLabel = myEleCollection
 # process.elPFIsoDepositChargedGsf.src = myEleCollection
 # process.elPFIsoDepositGammaGsf.src = myEleCollection
