@@ -44,17 +44,18 @@ seqALCARECOEcalCalElectronRECO = cms.Sequence( alCaIsolatedElectrons)
 
 # sequence that reduces the RECO format (not ECAL part) into ALCARECO
 ALCARECOEcalCalElectronPreSeq = cms.Sequence( kt6PFJetsForRhoCorrection +
-                                              alcaElectronTracksReducer +
-                                              pfisoALCARECO )
+                                              alcaElectronTracksReducer 
+#                                             + pfisoALCARECO 
+                                              )
 
 seqALCARECOEcalCalElectron = cms.Sequence( ALCARECOEcalCalElectronPreSeq +
                                            seqALCARECOEcalCalElectronRECO
                                            )
 
+seqALCARECOEcalCalPhoton = cms.Sequence( alCaIsolatedElectrons +
+                                           kt6PFJetsForRhoCorrection 
+                                         # + pfisoALCARECO 
+                                         )
 
-############################################### FINAL SEQUENCES
-#seqALCARECOEcalCalZElectron = cms.Sequence( ZSkimSeq * seqALCARECOEcalCalElectron)
-#seqALCARECOEcalCalWElectron = cms.Sequence( WSkimSeq  * seqALCARECOEcalCalElectron)
-#seqALCARECOEcalCalZSCElectron = cms.Sequence( ZSCSkimSeq  * seqALCARECOEcalCalElectron)
 
 
