@@ -138,7 +138,7 @@ process.load('Configuration.EventContent.EventContent_cff')
 # import of ALCARECO sequences
 process.load('Calibration.EcalAlCaRecoProducers.ALCARECOEcalCalIsolElectron_Output_cff')
 process.load('Calibration.EcalAlCaRecoProducers.ALCARECOEcalUncalIsolElectron_Output_cff')
-#from Calibration.EcalAlCaRecoProducers.sandboxRerecoOutput_cff import *
+from Calibration.EcalAlCaRecoProducers.sandboxRerecoOutput_cff import *
 
 #process.load('Configuration.StandardSequences.AlCaRecoStreams_cff') # this is for official ALCARAW ALCARECO production
 process.load('Calibration.EcalAlCaRecoProducers.ALCARECOEcalCalIsolElectron_cff') # reduction of recHits
@@ -289,6 +289,15 @@ else:
             process.GlobalTag.globaltag = 'GR_R_62_V3::All'
             if(options.files==""):
                 process.source.fileNames=[ 'root://cms-xrd-global.cern.ch//store/data/Run2012D/DoubleElectron/AOD/15Apr2014-v1/00000/0EA11D35-0CD5-E311-862E-0025905A6070.root' ]
+    elif(re.match("CMSSW_7_4_.*",CMSSW_VERSION)):
+        if(MC):
+            print "[INFO] Using GT POSTLS162_V5::All"
+            process.GlobalTag.globaltag = 'POSTLS162_V5::All'
+        else:
+            from Configuration.AlCa.GlobalTag_condDBv2 import GlobalTag
+            process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_data', '')
+            if(options.files==""):
+                process.source.fileNames=[ 'root://cms-xrd-global.cern.ch//store/data/Run2012D/DoubleElectron/AOD/15Apr2014-v1/00000/0EA11D35-0CD5-E311-862E-0025905A6070.root' ]
     else:
         print "[ERROR]::Global Tag not set for CMSSW_VERSION: ", CMSSW_VERSION
         sys.exit(1)
@@ -335,14 +344,20 @@ else:
     process.load('Calibration.EcalAlCaRecoProducers.WZElectronSkims_cff')
 
 process.load('DPGAnalysis.Skims.ZmmgSkim_cff')
+
 process.MinMuonNumberFilter = cms.EDFilter("CandViewCountFilter",
                                           src = cms.InputTag("muons"),
                                           minNumber = cms.uint32(2))
 process.MinPhoNumberFilter = cms.EDFilter("CandViewCountFilter",
                                           src = cms.InputTag("gedPhotons"),
                                           minNumber = cms.uint32(1))
+process.MinEleNumberFilter = cms.EDFilter("CandViewCountFilter",
+                                          src = myEleCollection,
+                                          minNumber = cms.uint32(1))
 if (ZmmgSkim==True):
-    process.filterSeq += cms.Sequence(process.MinMuonNumberFilter * process.MinPhoNumberFilter)
+    process.filterSeq = cms.Sequence(process.MinMuonNumberFilter * process.MinPhoNumberFilter)
+else:
+    process.filterSeq = cms.Sequence(process.MinEleNumberFilter)
 
 if (HLTFilter):
     from HLTrigger.HLTfilters.hltHighLevel_cfi import *
@@ -413,6 +428,8 @@ else:
 
 
 process.rhoFastJetSeq = cms.Sequence()
+process.jsonFilter = cms.Sequence()
+
 if((not options.type=="ALCARERECO") ):
     process.rhoFastJetSeq = cms.Sequence(process.kt6PFJetsForRhoCorrection) 
 
@@ -461,7 +478,7 @@ process.outputALCARAW = cms.OutputModule("PoolOutputModule",
 process.outputALCARECO = cms.OutputModule("PoolOutputModule",
                                           # after 5 GB split the file
                                           maxSize = cms.untracked.int32(5120000),
-                                          outputCommands = process.OutALCARECOEcalCalElectron_.outputCommands,
+                                          outputCommands = process.OutALCARECOEcalCalElectron.outputCommands,
                                           fileName = cms.untracked.string('alcareco.root'),
                                           SelectEvents = process.OutALCARECOEcalCalElectron.SelectEvents,
                                           dataset = cms.untracked.PSet(
@@ -475,7 +492,7 @@ process.zNtupleDumper.SelectEvents = process.NtupleFilter.HLTPaths
 process.outputALCARERECO = cms.OutputModule("PoolOutputModule",
                                           # after 5 GB split the file
                                           maxSize = cms.untracked.int32(5120000),
-                                          outputCommands = process.OutALCARECOEcalCalElectron_.outputCommands,
+                                          outputCommands = process.OutALCARECOEcalCalElectron.outputCommands,
                                           fileName = cms.untracked.string('alcarereco.root'),
                                           SelectEvents = cms.untracked.PSet(
     SelectEvents = cms.vstring('pathALCARERECOEcalCalElectron')
@@ -615,8 +632,7 @@ process.pathWElectronGen = cms.Path(process.filterSeq * process.FilterSeq *
 
 # ALCARAW
 if (re.match("CMSSW_7_.*",CMSSW_VERSION)):
-    #uncalibRecHitSeq = cms.Sequence( (ecalDigis + ecalPreshowerDigis) * ecalUncalibRecHitSequence)  #containing the new local reco for 72X
-    #process.ecalUncalibRecHitSequence=
+    uncalibRecHitSeq = cms.Sequence( (ecalDigis + ecalPreshowerDigis) * ecalUncalibRecHitSequence)  #containing the new local reco for 72X
 
     process.pathALCARECOEcalUncalSingleElectron = cms.Path(process.PUDumperSeq * process.filterSeq *
                                                        process.pfIsoEgamma *
@@ -717,17 +733,14 @@ if((options.doTree>0 and options.doTreeOnly==0)):
     process.jsonFilter.jsonFileName = cms.string(options.jsonFile)
 else:
     if(len(options.jsonFile)>0):
-        if(re.match("CMSSW_5_.*_.*",CMSSW_VERSION) or re.match("CMSSW_6_.*_.*",CMSSW_VERSION)):
-            # from CMSSW 5.0.0
-            import FWCore.PythonUtilities.LumiList as LumiList
-            process.source.lumisToProcess = LumiList.LumiList(filename = options.jsonFile).getVLuminosityBlockRange()
-        else:
-            # from CMSSW 3.8.0
-            #import FWCore.ParameterSet.Config as cms
-            import PhysicsTools.PythonAnalysis.LumiList as LumiList
-            myLumis = LumiList.LumiList(filename = options.jsonFile).getCMSSWString().split(',')
-            process.source.lumisToProcess = cms.untracked.VLuminosityBlockRange()
-            process.source.lumisToProcess.extend(myLumis)
+        # from CMSSW 5.0.0
+        import FWCore.PythonUtilities.LumiList as LumiList
+        process.source.lumisToProcess = LumiList.LumiList(filename = options.jsonFile).getVLuminosityBlockRange()
+        # from CMSSW 3.8.0
+        #import PhysicsTools.PythonAnalysis.LumiList as LumiList
+        #myLumis = LumiList.LumiList(filename = options.jsonFile).getCMSSWString().split(',')
+        #process.source.lumisToProcess = cms.untracked.VLuminosityBlockRange()
+        #process.source.lumisToProcess.extend(myLumis)
 
 
 ############################################################
@@ -842,10 +855,10 @@ if(re.match("CMSSW_4_2_.*", CMSSW_VERSION)):
     #process.eleNewEnergiesProducer.regrEleFile_fra=cms.string(pathPrefix+'data/eleEnergyRegWeights_V1.root')
 
 
-process.load('Calibration.EcalAlCaRecoProducers.valuemaptraslator_cfi')
-process.sandboxRerecoSeq*=process.elPFIsoValueCharged03PFIdRecalib
-process.sandboxRerecoSeq*=process.elPFIsoValueGamma03PFIdRecalib
-process.sandboxRerecoSeq*=process.elPFIsoValueNeutral03PFIdRecalib
+# process.load('Calibration.ValueMapTraslator.valuemaptraslator_cfi')
+# process.sandboxRerecoSeq*=process.elPFIsoValueCharged03PFIdRecalib
+# process.sandboxRerecoSeq*=process.elPFIsoValueGamma03PFIdRecalib
+# process.sandboxRerecoSeq*=process.elPFIsoValueNeutral03PFIdRecalib
 
 
 ############################################################
@@ -859,17 +872,17 @@ process.PassingHLT.InputProducer = myEleCollection
 
 process.eleRegressionEnergy.inputElectronsTag = myEleCollection
 process.patElectrons.electronSource = myEleCollection
-process.eleSelectionProducers.electronCollection = myEleCollection
+#process.eleSelectionProducers.electronCollection = myEleCollection
 process.electronMatch.src = myEleCollection
 process.eleNewEnergiesProducer.electronCollection = myEleCollection
 process.alCaIsolatedElectrons.electronLabel = myEleCollection 
 process.alcaElectronTracksReducer.electronLabel = myEleCollection
-process.elPFIsoDepositChargedGsf.src = myEleCollection
-process.elPFIsoDepositGammaGsf.src = myEleCollection
-process.elPFIsoDepositChargedGsf.src = myEleCollection
-process.elPFIsoValueCharged03PFIdRecalib.oldreferenceCollection = myEleCollection
-process.elPFIsoValueGamma03PFIdRecalib.oldreferenceCollection = myEleCollection
-process.elPFIsoValueNeutral03PFIdRecalib.oldreferenceCollection = myEleCollection
+# process.elPFIsoDepositChargedGsf.src = myEleCollection
+# process.elPFIsoDepositGammaGsf.src = myEleCollection
+# process.elPFIsoDepositChargedGsf.src = myEleCollection
+# process.elPFIsoValueCharged03PFIdRecalib.oldreferenceCollection = myEleCollection
+# process.elPFIsoValueGamma03PFIdRecalib.oldreferenceCollection = myEleCollection
+# process.elPFIsoValueNeutral03PFIdRecalib.oldreferenceCollection = myEleCollection
 process.electronRecalibSCAssociator.electronSrc = myEleCollection
 
 #process.eleNewEnergiesProducer.recHitCollectionEB = cms.InputTag("alCaIsolatedElectrons", "alCaRecHitsEB")
