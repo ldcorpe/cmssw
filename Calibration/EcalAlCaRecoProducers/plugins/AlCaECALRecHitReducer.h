@@ -64,6 +64,7 @@ class AlCaECALRecHitReducer : public edm::EDProducer {
   edm::InputTag eeRecHitsLabel_;
   edm::InputTag esRecHitsLabel_;
   edm::InputTag electronLabel_;
+  edm::InputTag photonLabel_;
   edm::InputTag EESuperClusterCollection_;
   std::string alcaBarrelHitsCollection_;
   std::string alcaEndcapHitsCollection_;
@@ -78,6 +79,7 @@ class AlCaECALRecHitReducer : public edm::EDProducer {
   //  int minEleNumber_;
   //  double minElePt_;
   double minEta_highEtaSC_;
+  std::string alcaCaloClusterCollection_;
 
   void AddMiniRecHitCollection(const reco::SuperCluster& sc,
 			       std::set<DetId>& reducedRecHitMap,
