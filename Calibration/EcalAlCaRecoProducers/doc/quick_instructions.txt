@@ -1,3 +1,24 @@
+/**
+\section RAWtoRECO RAW to RECO
+\code
+cmsDriver.py reco -s RAW2DIGI,RECO -n 100 --filein=files:///afs/cern.ch/user/l/lbrianza/work/public/C068EA4D-F13C-E211-B1F9-485B3977172C_SingleEle_RAW_15Apr_Run2012D.root --data --conditions=auto:run2_data
+\endcode
+
+\section ALCARAWProduction ALCARAW Production
+\code
+cmsDriver.py reco -s ALCA:EcalUncalElectron -n 100 --filein=files:///afs/cern.ch/user/s/shervin/scratch1/CMSSW_7_4_X_2015-01-09-0200/src/Calibration/EcalAlCaRecoProducers/reco_RAW2DIGI_RECO.root --data --conditions=auto:run2_data
+\endcode
+
+\section ALCARECOProduction ALCARECO Production
+
+\code
+cmsDriver.py reco -s ALCA:EcalCalElectron -n 100 --filein=files:///afs/cern.ch/user/s/shervin/scratch1/CMSSW_7_4_X_2015-01-09-0200/src/Calibration/EcalAlCaRecoProducers/reco_RAW2DIGI_RECO.root --data --conditions=auto:run2_data
+\endcode
+
+
+
+*/
+
 ########################## ALCARAW production
 ./script/prodAlcaraw.sh `./scripts/parseDatasetFile.sh alcaraw_datasets.dat | grep "name of the dataset"` 
 
