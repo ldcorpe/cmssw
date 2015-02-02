@@ -38,34 +38,34 @@
 #include "DataFormats/DetId/interface/DetId.h"
 #include "Geometry/CaloTopology/interface/CaloTopology.h"
 
-//PG #include "TH2.h"
-//PG #include "TFile.h"
-//PG #include "TCanvas.h"
-
+#include "DataFormats/EgammaCandidates/interface/GsfElectronFwd.h"
+#include "DataFormats/EgammaCandidates/interface/PhotonFwd.h"
+#include "DataFormats/EcalRecHit/interface/EcalRecHitCollections.h"
 //!
 //! class declaration
 //!
 
 class AlCaECALRecHitReducer : public edm::EDProducer {
-   public:
-      //! ctor
-      explicit AlCaECALRecHitReducer(const edm::ParameterSet&);
-      ~AlCaECALRecHitReducer();
-
- 
-      //! producer
-      virtual void produce(edm::Event &, const edm::EventSetup&);
-
-   private:
-      // ----------member data ---------------------------
-
+ public:
+  //! ctor
+  explicit AlCaECALRecHitReducer(const edm::ParameterSet&);
+  ~AlCaECALRecHitReducer();
   
-  edm::InputTag ebRecHitsLabel_;
-  edm::InputTag eeRecHitsLabel_;
-  edm::InputTag esRecHitsLabel_;
-  edm::InputTag electronLabel_;
-  edm::InputTag photonLabel_;
-  edm::InputTag EESuperClusterCollection_;
+  
+  //! producer
+  virtual void produce(edm::Event &, const edm::EventSetup&);
+  
+ private:
+  // ----------member data ---------------------------
+  
+  
+  
+  edm::EDGetTokenT<EcalRecHitCollection> ebRecHitsToken_;
+  edm::EDGetTokenT<EcalRecHitCollection> eeRecHitsToken_;
+  edm::EDGetTokenT<EcalRecHitCollection> esRecHitsToken_;
+  edm::EDGetTokenT<reco::GsfElectronCollection> electronToken_;
+  edm::EDGetTokenT<reco::PhotonCollection> photonToken_;
+  edm::EDGetTokenT<reco::SuperClusterCollection> EESuperClusterToken_;
   std::string alcaBarrelHitsCollection_;
   std::string alcaEndcapHitsCollection_;
   std::string alcaPreshowerHitsCollection_;
