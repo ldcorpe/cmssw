@@ -105,117 +105,449 @@ bool HGCALShowerBasedEmIdentificationLC2::isEm(const reco::PFCluster& clu,const 
   return (cutStartPosition(clu,rcs) &&  cutSigmaetaeta(clu,rcs) && cutLengthCompatibility(clu,rcs));
 } 
 
-double  HGCALShowerBasedEmIdentificationLC2::firstLayerWith(float frac,const reco::PFCluster& clu,const  edm::SortedCollection<HGCRecHit>& rcs )
+double  HGCALShowerBasedEmIdentificationLC2::firstLayerWithv2(float frac,const reco::PFCluster& clu,const  edm::SortedCollection<HGCRecHit>& rcs, const  edm::SortedCollection<HGCRecHit>& rcsHEF  )
 {
-float energy_fraction =0;
-double z = 0;
-for ( int iLayer = 30; iLayer > -1; iLayer--){
+
+	math::XYZPoint firstPos;
+	float cluster_energy =0;
+	float cluster_energy_HEF =0;
+//	std::cout << " HGCEF rechits " << rcsHEF.size() << std::endl;
+	//------------------------------------------------------------------------------
+	//FIRST need to ascertain FULL shower energy fro,HEF and EE
+	//Do this by going through the rechits in each subdet & summing up the energy...
+	//------------------------------------------------------------------------------
+
+	//loop over rechits
 	for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
 
-		const DetId & id_ =  clu.hitsAndFractions()[ih].first;
+		const DetId & id_ =  clu.hitsAndFractions()[ih].first;// get detId
 
-		int layer = getlayer<HGCEEDetId>(id_).second;
+		// Part oif the problem is that we need to work with HGCEE and HGCEF rechits rather than the default, so do a matching...
+		int matchIndex =-1; //matchIndex in case of HGCEE match 
+	//	int matchIndexHEF =-1; // matchIndex in case of HGCHEF match
 
-	//	int matchIndex =-1;
-		if (layer != iLayer) {continue;}
 
-		energy_fraction =energy_fraction + clu.hitsAndFractions()[ih].second;
-
-		
-/*		for (unsigned int irh=0; irh < rcs.size() ; irh++){
-
-			if (rcs[irh].id() == id_)
-			{
-				matchIndex = irh;
-				break;
+		//-------------------------
+		//first consider HGCEE case
+		//-------------------------
+		if(id_.subdetId() == HGCEE){
+			for (unsigned int irh=0; irh < rcs.size() ; irh++){
+				if (rcs[irh].id() == id_)	{ // they will have dame detID
+					matchIndex = irh;
+					break;
+				}
+			}
+			if( matchIndex >-1){		
+				cluster_energy = cluster_energy + rcs[matchIndex].energy();
 			}
 		}
-   	
-		if (matchIndex ==-1 ) { 
-		continue;
-		}
-	  auto refhit  = (rcs[matchIndex]) ;
-		const GlobalPoint pos =  geom->getPosition(refhit.id());
-		
-		if (id_.det()==DetId::Forward) {      
-			if (std::abs(pos.z())<zmin) {
-				firstPos = pos;
-				zmin = std::abs(pos.z());
+
+		//-------------------------
+		//next consider HGCHEF case
+		//-------------------------
+/*		if(id_.subdetId() == HGCHEF){
+			for (unsigned int irh=0; irh < rcsHEF.size() ; irh++){
+				if (rcsHEF[irh].id() == id_)	{ // they will have dame detID
+					matchIndexHEF = irh;
+	//				std::cout << "	FOUND" << std::endl;
+					break;
+				}
+			}
+			if( matchIndexHEF >-1){		
+				cluster_energy = cluster_energy + rcsHEF[matchIndexHEF].energy();
+				cluster_energy_HEF = cluster_energy_HEF + rcsHEF[matchIndexHEF].energy();
+			//	std::cout << "adding HGCHEF energy " << rcsHEF[matchIndexHEF].energy() << std::endl;
 			}
 		}*/
+		//end of loop over rechits.
 	}
-	std::cout << "debug - layer " << iLayer << " has " << energy_fraction*100 << " pc of the cluster's energy" << std::endl;
-}
+	// now cluster_energy has the total enegry of cluster in HGCEE and HGCEF
+	 std::cout <<" cluster e: EE " << cluster_energy - cluster_energy_HEF << ", HEF " << cluster_energy_HEF <<",  ie " << (100*cluster_energy_HEF )/cluster_energy<< " pc " << std::endl;
 
-/*
-	math::XYZPoint firstPos;
-	double zmin = 10000.0;  
-	for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
+	//------------------------------------------------------------------------------
+	//Now that we have teh total energy of the cluster, need to go through layer by
+	//layer starting from the outer layers (HGCHEF then HGCEE) and se how far many 
+	//layers we need to integrate before reaching frac % of the cluster energy...
+	//Start with HEF, then move onto HEE.
+	//------------------------------------------------------------------------------
 
-		const DetId & id_ =  clu.hitsAndFractions()[ih].first;
-		int matchIndex =-1;
-		
-		for (unsigned int irh=0; irh < rcs.size() ; irh++){
+	float energy_fraction =0;
+	int nRecHits =0;
+	int match_layer =0;
+	auto  match_detector = rcs[0].id().subdetId(); // will probably be in HGCEE,
+	// so pick subdetID of first HGCEE rechit... (so the "auto" gets decoded ok) 
 
-			if (rcs[irh].id() == id_)
-			{
-				matchIndex = irh;
-				break;
+
+	//------------------------------------------------------------------------------
+	//Start by looping over HGCEHEF layers 12->0.
+	//------------------------------------------------------------------------------
+
+/*	for ( int iLayer = 12; iLayer > -1; iLayer--){
+		// loop over all avialable rechits, but we will only select those in HGCHEF
+		for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
+
+			const DetId & id_ =  clu.hitsAndFractions()[ih].first;
+			//skip rechits which are not in HGCHEF
+			if (id_.subdetId() != HGCHEF){ continue;}
+			//get layer
+			int layer = getlayer<HGCHEDetId>(id_).second;
+			//	skip recHit if not in the considered layer;
+			if (layer != iLayer) {continue;}
+			// now we do the matching to the HGCHEF recHit collection as above...
+			int matchIndexHEF =-1;
+			// loop over HGCHEF rechits to find the match
+			for (unsigned int irh=0; irh < rcsHEF.size() ; irh++){
+				if (rcsHEF[irh].id() == id_){
+					matchIndexHEF = irh;
+					break;
+				}
 			}
-		}
-   	
-		if (matchIndex ==-1 ) { 
-		continue;
-		}
-	  auto refhit  = (rcs[matchIndex]) ;
-		const GlobalPoint pos =  geom->getPosition(refhit.id());
-		
-		if (id_.det()==DetId::Forward) {      
-			if (std::abs(pos.z())<zmin) {
-				firstPos = pos;
-				zmin = std::abs(pos.z());
+			if (matchIndexHEF ==-1 ) { 
+				continue;
 			}
+			auto refhit  = (rcsHEF[matchIndexHEF]) ;
+			nRecHits++;
+			energy_fraction =energy_fraction + (refhit.energy())/cluster_energy;
+	//		std::cout << "adding fraction" << (refhit.energy())/cluster_energy << std::endl;
 		}
+		if (energy_fraction > frac) {
+			match_layer =iLayer;
+			match_detector = HGCHEF;
+			break;
+		}
+ 	if (iLayer ==0) std::cout << " HGCHEF layer " << iLayer << ", energy is " << energy_fraction*100 << "pc of total "<< std::endl;
+	}*/
+	//------------------------------------------------------------------------------
+	//Continue with HGCEE layers 30->0
+	//------------------------------------------------------------------------------
+	float layer_e =0;
+	for ( int iLayer = 30; iLayer > -1; iLayer--){
+	layer_e =0;
+		// loop over all avialable rechits, but we will only select those in HGCEE
+		for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
+
+			const DetId & id_ =  clu.hitsAndFractions()[ih].first;
+			//skip rechits which are not in HGCEE
+			if (id_.subdetId() != HGCEE){ continue;}
+			//get layer
+			int layer = getlayer<HGCEEDetId>(id_).second;
+			//	skip recHit if not in the considered layer;
+			if (layer != iLayer) {continue;}
+			// now we do the matching to the HGCHEF recHit collection as above...
+			int matchIndex =-1;
+			// loop over HGCEE rechits to find the match
+			for (unsigned int irh=0; irh < rcs.size() ; irh++){
+				if (rcs[irh].id() == id_){
+					matchIndex = irh;
+					break;
+				}
+			}
+			if (matchIndex ==-1 ) { 
+				continue;
+			}
+			auto refhit  = (rcs[matchIndex]) ;
+			nRecHits++;
+			energy_fraction =energy_fraction + (refhit.energy())/cluster_energy;
+			layer_e += refhit.energy();
+		}
+		if (energy_fraction > frac) {
+			match_layer =iLayer;
+			match_detector = HGCEE; 
+			break;
+		}
+  std::cout << " HGCEE layer " << iLayer << ", energy is " << layer_e << ", fraction " << energy_fraction*100 << "pc of total "<< std::endl;
+	//		std::cout << " HGCEE layer " << iLayer << ", energy is " << energy_fraction*100 << "pc of total "<< std::endl;
 	}
+
+std::cout <<" match layer " << match_layer << std::endl;
+	//------------------------------------------------------------------------------
+	//  Next  find the most energetic recHit in the layer and use that position..
+	//------------------------------------------------------------------------------
 
 	double maxfirstenergy=0.; 
 	for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
-		
+
 		const DetId & id_ =  clu.hitsAndFractions()[ih].first;
-		int matchIndex =-1;
-		
-		for (unsigned int irh=0; irh < rcs.size() ; irh++){
 
-			if (rcs[irh].id() == id_)
-			{
-				matchIndex = irh;
-				break;
+		if(match_detector == HGCEE){
+			int	layer = getlayer<HGCEEDetId>(id_).second;
+			if ( layer != match_layer) {continue;}
+			int matchIndex =-1;
+			for (unsigned int irh=0; irh < rcs.size() ; irh++){
+				if (rcs[irh].id() == id_){
+					matchIndex = irh;
+					break;
+				}
 			}
-		}
-   	
-		if (matchIndex ==-1 ) { 
-		continue;
-		}
-
-	  auto refhit  = rcs[matchIndex];
-		const GlobalPoint pos =  geom->getPosition(refhit.id());
-		if (id_.det()==DetId::Forward) {
-			if (std::abs(pos.z()) != zmin) continue;
-			if (refhit.energy() > maxfirstenergy) {
-				firstPos = pos;
-				maxfirstenergy = refhit.energy();
+			if (matchIndex ==-1 ) { 
+				continue;
 			}
-		}
+			auto refhit  = rcs[matchIndex];
+			const GlobalPoint pos =  geom->getPosition(refhit.id());
+			if (id_.det()==DetId::Forward) {
+				if (refhit.energy() > maxfirstenergy) {
+					firstPos = pos;
+					maxfirstenergy = refhit.energy();
+				}
+			}
+		} /*else if(match_detector == HGCHEF){
+			int	layer = getlayer<HGCHEDetId>(id_).second;
+			if ( layer != match_layer) {continue;}
+			int matchIndex =-1;
+			for (unsigned int irh=0; irh < rcsHEF.size() ; irh++){
+				if (rcsHEF[irh].id() == id_){
+					matchIndex = irh;
+					break;
+				}
+			}
+			if (matchIndex ==-1 ) { 
+				continue;
+			}
+			auto refhit  = rcsHEF[matchIndex];
+			const GlobalPoint pos =  geom->getPosition(refhit.id());
+			if (id_.det()==DetId::Forward) {
+				if (refhit.energy() > maxfirstenergy) {
+					firstPos = pos;
+					maxfirstenergy = refhit.energy();
+				}
+			}
+		}*/
 	}
 
+	//------------------------------------------------------------------------------
 	// finally refine firstPos x and y using the meaured direction 
-	if (!showerPosIsSet_ || !showerPosIsSet_) return firstPos;
+	//------------------------------------------------------------------------------
+	if (!showerPosIsSet_ || !showerPosIsSet_) return firstPos.z();
 
 	double lambda = (firstPos-showerPos_).z()/showerDir_.z();
 	math::XYZPoint extraPos = showerPos_ + lambda*showerDir_;	 
 	firstPos = extraPos;
-*/
-	return z;
+
+	return firstPos.z();
+
+}
+double  HGCALShowerBasedEmIdentificationLC2::firstLayerWith(float frac,const reco::PFCluster& clu,const  edm::SortedCollection<HGCRecHit>& rcs, const  edm::SortedCollection<HGCRecHit>& rcsHEF  )
+{
+
+	math::XYZPoint firstPos;
+	float cluster_energy =0;
+	float cluster_energy_HEF =0;
+//	std::cout << " HGCEF rechits " << rcsHEF.size() << std::endl;
+	//------------------------------------------------------------------------------
+	//FIRST need to ascertain FULL shower energy fro,HEF and EE
+	//Do this by going through the rechits in each subdet & summing up the energy...
+	//------------------------------------------------------------------------------
+
+	//loop over rechits
+	for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
+
+		const DetId & id_ =  clu.hitsAndFractions()[ih].first;// get detId
+
+		// Part oif the problem is that we need to work with HGCEE and HGCEF rechits rather than the default, so do a matching...
+		int matchIndex =-1; //matchIndex in case of HGCEE match 
+		int matchIndexHEF =-1; // matchIndex in case of HGCHEF match
+
+
+		//-------------------------
+		//first consider HGCEE case
+		//-------------------------
+		if(id_.subdetId() == HGCEE){
+			for (unsigned int irh=0; irh < rcs.size() ; irh++){
+				if (rcs[irh].id() == id_)	{ // they will have dame detID
+					matchIndex = irh;
+					break;
+				}
+			}
+			if( matchIndex >-1){		
+				cluster_energy = cluster_energy + rcs[matchIndex].energy();
+			}
+		}
+
+		//-------------------------
+		//next consider HGCHEF case
+		//-------------------------
+		if(id_.subdetId() == HGCHEF){
+			for (unsigned int irh=0; irh < rcsHEF.size() ; irh++){
+				if (rcsHEF[irh].id() == id_)	{ // they will have dame detID
+					matchIndexHEF = irh;
+	//				std::cout << "	FOUND" << std::endl;
+					break;
+				}
+			}
+			if( matchIndexHEF >-1){		
+				cluster_energy = cluster_energy + rcsHEF[matchIndexHEF].energy();
+				cluster_energy_HEF = cluster_energy_HEF + rcsHEF[matchIndexHEF].energy();
+			//	std::cout << "adding HGCHEF energy " << rcsHEF[matchIndexHEF].energy() << std::endl;
+			}
+		}
+		//end of loop over rechits.
+	}
+	// now cluster_energy has the total enegry of cluster in HGCEE and HGCEF
+	 std::cout <<" cluster e: EE " << cluster_energy - cluster_energy_HEF << ", HEF " << cluster_energy_HEF <<",  ie " << (100*cluster_energy_HEF )/cluster_energy<< " pc " << std::endl;
+
+	//------------------------------------------------------------------------------
+	//Now that we have teh total energy of the cluster, need to go through layer by
+	//layer starting from the outer layers (HGCHEF then HGCEE) and se how far many 
+	//layers we need to integrate before reaching frac % of the cluster energy...
+	//Start with HEF, then move onto HEE.
+	//------------------------------------------------------------------------------
+
+	float energy_fraction =0;
+	int nRecHits =0;
+	int match_layer =0;
+	float layer_e =0;
+	auto  match_detector = rcs[0].id().subdetId(); // will probably be in HGCEE,
+	// so pick subdetID of first HGCEE rechit... (so the "auto" gets decoded ok) 
+
+
+	//------------------------------------------------------------------------------
+	//Start by looping over HGCEHEF layers 12->0.
+	//------------------------------------------------------------------------------
+
+	for ( int iLayer = 12; iLayer > -1; iLayer--){
+	layer_e =0;
+		// loop over all avialable rechits, but we will only select those in HGCHEF
+		for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
+
+			const DetId & id_ =  clu.hitsAndFractions()[ih].first;
+			//skip rechits which are not in HGCHEF
+			if (id_.subdetId() != HGCHEF){ continue;}
+			//get layer
+			int layer = getlayer<HGCHEDetId>(id_).second;
+			//	skip recHit if not in the considered layer;
+			if (layer != iLayer) {continue;}
+			// now we do the matching to the HGCHEF recHit collection as above...
+			int matchIndexHEF =-1;
+			// loop over HGCHEF rechits to find the match
+			for (unsigned int irh=0; irh < rcsHEF.size() ; irh++){
+				if (rcsHEF[irh].id() == id_){
+					matchIndexHEF = irh;
+					break;
+				}
+			}
+			if (matchIndexHEF ==-1 ) { 
+				continue;
+			}
+			auto refhit  = (rcsHEF[matchIndexHEF]) ;
+			nRecHits++;
+			energy_fraction =energy_fraction + (refhit.energy())/cluster_energy;
+			layer_e += refhit.energy();
+	//		std::cout << "adding fraction" << (refhit.energy())/cluster_energy << std::endl;
+		}
+		if (energy_fraction > frac) {
+			match_layer =iLayer;
+			match_detector = HGCHEF;
+			break;
+		}
+  std::cout << " HGCHEF layer " << iLayer << ", energy is " << layer_e << ", fraction " << energy_fraction*100 << "pc of total "<< std::endl;
+	}
+	//------------------------------------------------------------------------------
+	//Continue with HGCEE layers 30->0
+	//------------------------------------------------------------------------------
+
+	for ( int iLayer = 30; iLayer > -1; iLayer--){
+	layer_e =0;
+		// loop over all avialable rechits, but we will only select those in HGCEE
+		for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
+
+			const DetId & id_ =  clu.hitsAndFractions()[ih].first;
+			//skip rechits which are not in HGCEE
+			if (id_.subdetId() != HGCEE){ continue;}
+			//get layer
+			int layer = getlayer<HGCEEDetId>(id_).second;
+			//	skip recHit if not in the considered layer;
+			if (layer != iLayer) {continue;}
+			// now we do the matching to the HGCHEF recHit collection as above...
+			int matchIndex =-1;
+			// loop over HGCEE rechits to find the match
+			for (unsigned int irh=0; irh < rcs.size() ; irh++){
+				if (rcs[irh].id() == id_){
+					matchIndex = irh;
+					break;
+				}
+			}
+			if (matchIndex ==-1 ) { 
+				continue;
+			}
+			auto refhit  = (rcs[matchIndex]) ;
+			nRecHits++;
+			energy_fraction =energy_fraction + (refhit.energy())/cluster_energy;
+			layer_e += refhit.energy();
+		}
+		if (energy_fraction > frac) {
+			match_layer =iLayer;
+			match_detector = HGCEE; 
+			break;
+		}
+  std::cout << " HGCEE layer " << iLayer << ", energy is " << layer_e << ", fraction " << energy_fraction*100 << "pc of total "<< std::endl;
+	//		std::cout << " HGCEE layer " << iLayer << ", energy is " << energy_fraction*100 << "pc of total "<< std::endl;
+	}
+std::cout <<" match layer " << match_layer << std::endl;
+	//------------------------------------------------------------------------------
+	//  Next  find the most energetic recHit in the layer and use that position..
+	//------------------------------------------------------------------------------
+
+	double maxfirstenergy=0.; 
+//	int finalLayer =-1;
+	for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
+
+		const DetId & id_ =  clu.hitsAndFractions()[ih].first;
+
+		if(match_detector == HGCEE){
+			int	layer = getlayer<HGCEEDetId>(id_).second;
+			if ( layer != match_layer) {continue;}
+			int matchIndex =-1;
+			for (unsigned int irh=0; irh < rcs.size() ; irh++){
+				if (rcs[irh].id() == id_){
+					matchIndex = irh;
+					break;
+				}
+			}
+			if (matchIndex ==-1 ) { 
+				continue;
+			}
+			auto refhit  = rcs[matchIndex];
+			const GlobalPoint pos =  geom->getPosition(refhit.id());
+			if (id_.det()==DetId::Forward) {
+				if (refhit.energy() > maxfirstenergy) {
+					firstPos = pos;
+					maxfirstenergy = refhit.energy();
+				}
+			}
+		} /*else if(match_detector == HGCHEF){
+			int	layer = getlayer<HGCHEDetId>(id_).second;
+			if ( layer != match_layer) {continue;}
+			int matchIndex =-1;
+			for (unsigned int irh=0; irh < rcsHEF.size() ; irh++){
+				if (rcsHEF[irh].id() == id_){
+					matchIndex = irh;
+					break;
+				}
+			}
+			if (matchIndex ==-1 ) { 
+				continue;
+			}
+			auto refhit  = rcsHEF[matchIndex];
+			const GlobalPoint pos =  geom->getPosition(refhit.id());
+			if (id_.det()==DetId::Forward) {
+				if (refhit.energy() > maxfirstenergy) {
+					firstPos = pos;
+					maxfirstenergy = refhit.energy();
+				}
+			}
+		}*/
+	}
+
+	//------------------------------------------------------------------------------
+	// finally refine firstPos x and y using the meaured direction 
+	//------------------------------------------------------------------------------
+	if (!showerPosIsSet_ || !showerPosIsSet_) return firstPos.z();
+
+	double lambda = (firstPos-showerPos_).z()/showerDir_.z();
+	math::XYZPoint extraPos = showerPos_ + lambda*showerDir_;	 
+	firstPos = extraPos;
+
+	return firstPos.z();
 
 }
 math::XYZPoint HGCALShowerBasedEmIdentificationLC2::startPosition(const reco::PFCluster& clu,const  edm::SortedCollection<HGCRecHit>& rcs )
@@ -227,7 +559,7 @@ math::XYZPoint HGCALShowerBasedEmIdentificationLC2::startPosition(const reco::PF
 
 		const DetId & id_ =  clu.hitsAndFractions()[ih].first;
 		int matchIndex =-1;
-		
+
 		for (unsigned int irh=0; irh < rcs.size() ; irh++){
 
 			if (rcs[irh].id() == id_)
@@ -236,13 +568,13 @@ math::XYZPoint HGCALShowerBasedEmIdentificationLC2::startPosition(const reco::PF
 				break;
 			}
 		}
-   	
+
 		if (matchIndex ==-1 ) { 
-		continue;
+			continue;
 		}
-	  auto refhit  = (rcs[matchIndex]) ;
+		auto refhit  = (rcs[matchIndex]) ;
 		const GlobalPoint pos =  geom->getPosition(refhit.id());
-		
+
 		if (id_.det()==DetId::Forward) {      
 			if (std::abs(pos.z())<zmin) {
 				firstPos = pos;
@@ -253,26 +585,26 @@ math::XYZPoint HGCALShowerBasedEmIdentificationLC2::startPosition(const reco::PF
 
 	double maxfirstenergy=0.; 
 	for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
-		
+
 		const DetId & id_ =  clu.hitsAndFractions()[ih].first;
 		int matchIndex =-1;
-		
+
 		for (unsigned int irh=0; irh < rcs.size() ; irh++){
 
 			if (rcs[irh].id() == id_)
 			{
-					
+
 				matchIndex = irh;
 				break;
 
 			}
 		}
-   	
+
 		if (matchIndex ==-1 ) { 
-		continue;
+			continue;
 		}
 
-	  auto refhit  = rcs[matchIndex];
+		auto refhit  = rcs[matchIndex];
 		const GlobalPoint pos =  geom->getPosition(refhit.id());
 		if (id_.det()==DetId::Forward) {
 			if (std::abs(pos.z()) != zmin) continue;
@@ -297,40 +629,40 @@ math::XYZPoint HGCALShowerBasedEmIdentificationLC2::startPosition(const reco::PF
 double HGCALShowerBasedEmIdentificationLC2::sigmaetaeta(const reco::PFCluster& clu,const edm::SortedCollection<HGCRecHit>& rcs )
 {
 
-//	std::cout << "debug 0" << std::endl;
+	//	std::cout << "debug 0" << std::endl;
 	double sigmaetaeta=0., sumnrj=0.;
 	math::XYZPoint firstPos = startPosition(clu, rcs);
 
-//	std::cout << "debug s_ee 0 " << sigmaetaeta << std::endl;
-//	std::cout << "debug 1" << std::endl;
+	//	std::cout << "debug s_ee 0 " << sigmaetaeta << std::endl;
+	//	std::cout << "debug 1" << std::endl;
 	for (unsigned int ih=0;ih<clu.recHitFractions().size();++ih) {
-//		const auto& refhit = clu.recHitFractions()[ih].recHitRef();
-//		const DetId & id_ = refhit->detId() ;       
+		//		const auto& refhit = clu.recHitFractions()[ih].recHitRef();
+		//		const DetId & id_ = refhit->detId() ;       
 		const DetId & id_ =  clu.hitsAndFractions()[ih].first;
 		int matchIndex =-1;
-	//	std::cout << "rcs size " << rcs.size() << std::endl;
-	//	std::cout << "detId pos " << id_.position() << std::endl;
+		//	std::cout << "rcs size " << rcs.size() << std::endl;
+		//	std::cout << "detId pos " << id_.position() << std::endl;
 		for (unsigned int irh=0; irh < rcs.size() ; irh++){
 
-		//		if (irh%1000 ==0) { std::cout << "rechit " << irh << " pos " <<rcs[irh]->position() << std::endl ;}
+			//		if (irh%1000 ==0) { std::cout << "rechit " << irh << " pos " <<rcs[irh]->position() << std::endl ;}
 			if (rcs[irh].id() == id_)
 			{
-					
-//				refhit  = rcs[irh];
+
+				//				refhit  = rcs[irh];
 				matchIndex = irh;
 				//	std::cout << " add " << i <<"th rechit, subtotal "<< subtotal<< std::endl;
 				break;
 
 			}
 		}
-   	
+
 		if (matchIndex ==-1 ) { 
-		//std::cout << "no match" << std::endl;
-		continue;}
-	  auto refhit  = rcs[matchIndex];
+			//std::cout << "no match" << std::endl;
+			continue;}
+		auto refhit  = rcs[matchIndex];
 		if (id_.det()==DetId::Forward) {
 
-		  const GlobalPoint cellPos0 =  geom->getPosition(refhit.id());
+			const GlobalPoint cellPos0 =  geom->getPosition(refhit.id());
 			math::XYZPoint cellPos (cellPos0.x(), cellPos0.y(), cellPos0.z());	     
 			math::XYZVector radius, longitudinal, transverse;
 			radius = cellPos - firstPos;
@@ -343,7 +675,7 @@ double HGCALShowerBasedEmIdentificationLC2::sigmaetaeta(const reco::PFCluster& c
 				if (!withPileup_ || transverse.R() < rmax_) {
 					const double deta = (cellPos.eta()-showerPos_.eta());
 					sigmaetaeta += deta*deta*refhit.energy();
-//	std::cout << "debug s_ee 1 " << sigmaetaeta << std::endl;
+					//	std::cout << "debug s_ee 1 " << sigmaetaeta << std::endl;
 					sumnrj += refhit.energy();
 				}
 			}
@@ -361,9 +693,9 @@ double HGCALShowerBasedEmIdentificationLC2::sigmaetaeta(const reco::PFCluster& c
 	const double clu_eta = std::abs(clu.eta()); 
 	feta = 0.00964148 - clu_eta*(0.0107843 - 0.00495703*clu_eta);
 	sigmaetaeta *= feta_0 / feta ;
-//	std::cout << "debug s_ee 3 " << sigmaetaeta << std::endl;
+	//	std::cout << "debug s_ee 3 " << sigmaetaeta << std::endl;
 
-//	std::cout << "debug 3" << std::endl;
+	//	std::cout << "debug 3" << std::endl;
 	return sigmaetaeta;
 
 }

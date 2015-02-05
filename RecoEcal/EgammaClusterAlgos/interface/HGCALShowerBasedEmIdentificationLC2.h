@@ -35,7 +35,8 @@ class HGCALShowerBasedEmIdentificationLC2
   HGCALShowerBasedEmIdentificationLC2(bool withPileup, const HGCalGeometry* geom_) ;
   
   bool isEm(const reco::PFCluster& clu,const   edm::SortedCollection<HGCRecHit>& rcs ); 
-  double firstLayerWith(float frac,const reco::PFCluster& clu,const  edm::SortedCollection<HGCRecHit>& rcs );
+  double firstLayerWith(float frac,const reco::PFCluster& clu,const  edm::SortedCollection<HGCRecHit>& rcs ,const  edm::SortedCollection<HGCRecHit>& rcsHEF );
+  double firstLayerWithv2(float frac,const reco::PFCluster& clu,const  edm::SortedCollection<HGCRecHit>& rcs ,const  edm::SortedCollection<HGCRecHit>& rcsHEF );
   bool cutStartPosition(const reco::PFCluster& clu,const  edm::SortedCollection<HGCRecHit>& rcs );
   bool cutSigmaetaeta(const reco::PFCluster& clu,const   edm::SortedCollection<HGCRecHit>& rcs );
   bool cutLengthCompatibility(const reco::PFCluster& clu,const  edm::SortedCollection<HGCRecHit>& rcs );

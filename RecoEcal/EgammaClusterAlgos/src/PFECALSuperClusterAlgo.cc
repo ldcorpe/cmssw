@@ -185,6 +185,8 @@ void PFECALSuperClusterAlgo::setTokens(const edm::ParameterSet &iConfig, edm::Co
     cc.consumes<reco::PFCluster::EEtoPSAssociation>(iConfig.getParameter<edm::InputTag>("ESAssociation"));  
   inputTagBeamSpot_ = 
     cc.consumes<reco::BeamSpot>(iConfig.getParameter<edm::InputTag>("BeamSpot"));    
+//	eeRecHitCollection_ =
+//	cc.consumes <edm::View<reco::PFRecHit> > (iConfig.getUntrackedParameter<edm::InputTag>("eeRecHitCollection",edm::InputTag("particleFlowRecHitHGCEE:Cleaned")));
     
   if (useRegression_) {
     const edm::ParameterSet &regconf = iConfig.getParameter<edm::ParameterSet>("regressionConfig");

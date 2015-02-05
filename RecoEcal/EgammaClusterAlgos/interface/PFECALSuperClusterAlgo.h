@@ -134,6 +134,7 @@ class PFECALSuperClusterAlgo {
   edm::EDGetTokenT<edm::View<reco::PFCluster> >   inputTagPFClusters_;
   edm::EDGetTokenT<reco::PFCluster::EEtoPSAssociation>   inputTagPFClustersES_;   
   edm::EDGetTokenT<reco::BeamSpot>   inputTagBeamSpot_;
+//	edm::EDGetTokenT<edm::View<reco::PFRecHit> > eeRecHitCollection_     ;
    
   const reco::BeamSpot *beamSpot_;
   
