@@ -16,6 +16,12 @@
 <use   name="CondFormats/DataRecord"/>
 <use   name="CondFormats/HcalObjects"/>
 <use   name="CondFormats/SiPixelObjects"/>
+<use   name="CommonTools/UtilAlgos"/>
+<use   name="CalibCalorimetry/CaloMiscalibTools"/>
+<use   name="Calibration/Tools"/>
+<use   name="CondTools/Ecal"/>
+<use   name="DataFormats/EcalDetId"/>
+<use   name="DataFormats/TrackReco"/>
 <use   name="Geometry/CaloGeometry"/>
 <use   name="Geometry/CaloTopology"/>
 <use   name="Geometry/EcalAlgo"/>
@@ -24,4 +30,10 @@
 <use   name="RecoLocalCalo/EcalRecAlgos"/>
 <use   name="TrackingTools/TrackAssociator"/>
 <use   name="clhep"/>
-<flags   EDM_PLUGIN="1"/>
+#<flags   EDM_PLUGIN="1"/>
+<use   name="SimDataFormats/GeneratorProducts"/>
+<use name="FWCore/ServiceRegistry"/> 
+<use name="DataFormats/HepMCCandidate"/>
+<use   name="root"/>
+<use   name="xerces-c"/>
+#<Flags CppDefines="CMSSW42X=1"/>

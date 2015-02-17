@@ -40,7 +40,11 @@ from Calibration.TkAlCaRecoProducers.ALCARECOSiStripCalZeroBias_cff import *
 # ECAL Calibration
 ###############################################################
 # ECAL calibration with isol. electrons
+# -- alcareco
 from Calibration.EcalAlCaRecoProducers.ALCARECOEcalCalIsolElectron_cff import *
+# -- alcaraw 
+from Calibration.EcalAlCaRecoProducers.ALCARECOEcalUncalIsolElectron_cff import *
+
 ###############################################################
 # HCAL Calibration
 ###############################################################
@@ -118,8 +122,31 @@ pathALCARECOSiPixelLorentzAngle = cms.Path(seqALCARECOSiPixelLorentzAngle)
 pathALCARECOSiStripCalMinBias = cms.Path(seqALCARECOSiStripCalMinBias*ALCARECOSiStripCalMinBiasDQM)
 pathALCARECOSiStripCalZeroBias = cms.Path(seqALCARECOSiStripCalZeroBias*ALCARECOSiStripCalZeroBiasDQM)
 
-pathALCARECOEcalCalZElectron = cms.Path(seqALCARECOEcalCalZElectron)
-pathALCARECOEcalCalWElectron = cms.Path(seqALCARECOEcalCalWElectron)
+#pathALCARECOEcalCalZElectron = cms.Path(seqALCARECOEcalCalZElectron)
+#pathALCARECOEcalCalWElectron = cms.Path(seqALCARECOEcalCalWElectron)
+pathALCARECOEcalUncalZElectron = cms.Path( PUDumperSeq * filterSeq * FilterSeq *
+                                           (ALCARECOEcalCalElectronPreSeq +
+                                            seqALCARECOEcalUncalElectron ))
+pathALCARECOEcalUncalZSCElectron = cms.Path( PUDumperSeq * filterSeq * FilterSeq *
+                                             ~ZeeFilter * ZSCFilter *
+                                             (ALCARECOEcalCalElectronPreSeq +
+                                              seqALCARECOEcalUncalElectron ))
+pathALCARECOEcalUncalWElectron = cms.Path( PUDumperSeq * filterSeq * FilterSeq *
+                                           ~ZeeFilter * ~ZSCFilter * WenuFilter *
+                                           (ALCARECOEcalCalElectronPreSeq +
+                                            seqALCARECOEcalUncalElectron ))
+pathALCARECOEcalCalZElectron = cms.Path( PUDumperSeq * filterSeq * FilterSeq *
+                                         ZeeFilter *
+                                         seqALCARECOEcalCalElectron)
+pathALCARECOEcalCalWElectron = cms.Path( PUDumperSeq * filterSeq *
+                                         FilterSeq * 
+                                         ~ZeeFilter * ~ZSCFilter * WenuFilter *
+                                         seqALCARECOEcalCalElectron)
+pathALCARECOEcalCalZSCElectron = cms.Path( PUDumperSeq *
+                                           filterSeq * FilterSeq *
+                                           ~ZeeFilter * ZSCFilter * 
+                                           seqALCARECOEcalCalElectron )
+
 
 pathALCARECOHcalCalDijets = cms.Path(seqALCARECOHcalCalDijets*ALCARECOHcalCalDiJetsDQM)
 pathALCARECOHcalCalGammaJet = cms.Path(seqALCARECOHcalCalGammaJet)
@@ -247,9 +274,19 @@ ALCARECOStreamSiStripCalZeroBias = cms.FilteredStream(
 ALCARECOStreamEcalCalElectron = cms.FilteredStream(
 	responsible = 'Shervin Nourbakhsh',
 	name = 'EcalCalElectron',
-	paths  = (pathALCARECOEcalCalZElectron, pathALCARECOEcalCalWElectron),
+	paths  = (pathALCARECOEcalCalZElectron, pathALCARECOEcalCalWElectron, pathALCARECOEcalCalZSCElectron), 
 	content = OutALCARECOEcalCalElectron.outputCommands,
 	selectEvents = OutALCARECOEcalCalElectron.SelectEvents,
+	dataTier = cms.untracked.string('ALCARECO')
+	)
+
+
+ALCARECOStreamEcalUncalElectron = cms.FilteredStream(
+	responsible = 'Shervin Nourbakhsh',
+	name = 'EcalUncalElectron',
+	paths  = (pathALCARECOEcalUncalZElectron, pathALCARECOEcalUncalWElectron, pathALCARECOEcalUncalZSCElectron), 
+	content = OutALCARECOEcalUncalElectron.outputCommands,
+	selectEvents = OutALCARECOEcalUncalElectron.SelectEvents,
 	dataTier = cms.untracked.string('ALCARECO')
 	)
 
