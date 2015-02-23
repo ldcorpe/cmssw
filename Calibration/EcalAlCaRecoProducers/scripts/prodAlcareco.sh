@@ -14,10 +14,13 @@ BLACKLIST=T2_EE_Estonia
 CREATE=yes
 SUBMIT=yes
 OUTPUTFILE=alcareco
-crabFile=tmp/alcareco.cfg
+crabFile=tmp/alcareco_cfg.py
 DOTREE=0
 NJOBS=100
 OUTFILES="ntuple.root"
+JOBNAME="JOBNAME"
+
+echo "debug 0"
 
 usage(){
     echo "`basename $0` options"
@@ -93,6 +96,7 @@ do
     shift
 done
 
+echo "debug 1"
 #------------------------------ checking
 if [ -z "$DATASETPATH" ];then 
     echo "[ERROR] DATASETPATH not defined" >> /dev/stderr
@@ -152,6 +156,7 @@ fi
 
 ###############################
 
+echo "debug 2"
 #------------------------------
 
 if [ -z "${SKIM}" ];then
@@ -208,123 +213,60 @@ fi
 #  NJOBS=`grep "</Job>" _tmp_argument.xml | wc -l`
 #fi
 
+echo " $STORAGE_ELEMENT"
+
 OUTFILES=`echo $OUTFILES | sed 's|^,||'`
+
+echo "debug 3"
 
 #==============================
 cat > ${crabFile} <<EOF
-[CRAB]
-#use_server = $USESERVER
-jobtype = cmssw
-scheduler = $SCHEDULER
-[LSF]
-queue = 1nd
-#resource = type==SLC5_64
-[CAF]
-queue = cmscaf1nd
-resource = type==SLC5_64
+from CRABClient.UserUtilities import config
+config = config()
 
+config.General.requestName = '${JOBNAME}'
+config.General.workArea = 'crab_projects'
 
-[CMSSW]
-datasetpath=${DATASETPATH}
-use_dbs3  = 1
-EOF
-if [ -n "${DBS_URL}" ];then
-    echo "dbs_url=${DBS_URL}" >> tmp/alcareco.cfg
-fi
+config.JobType.pluginName = 'Analysis'
+config.JobType.psetName = 'python/trivialConfig.py'
+config.JobType.pyCfgParams = ['output=${OUTPUTFILE}.root', 'skim=${SKIM}', 'type=$TYPE','doTree=${DOTREE}', 'jsonFile=${JSONFILE}', 'secondaryOutput=ntuple.root', 'isCrab=1'] 
+config.JobType.allowNonProductionCMSSW = True
 
-cat >> ${crabFile} <<EOF
-pset=python/alcaSkimming.py
-pycfg_params=output=${OUTPUTFILE}.root skim=${SKIM} type=$TYPE doTree=${DOTREE} jsonFile=${JSONFILE} secondaryOutput=ntuple.root isCrab=1 
+config.Data.inputDataset = '${DATASETPATH}'
+config.Data.inputDBS = 'global'
+config.Data.splitting = 'FileBased'
+config.Data.unitsPerJob = 10
+config.Data.runRange = '190645-190645' #'${RUNRANGE}'
+config.Data.outLFN = '/store/group/dpg_ecal/alca_ecalcalib/lcorpe/${JOBNAME}'
 
-runselection=${RUNRANGE}
-split_by_run=0
-EOF
-
-if [ "$DOTREE" -gt "0" ]; then
-   cat >> ${crabFile} <<EOF
-output_file=${OUTFILES}
-EOF
-fi 
-
-if [ "$TYPE" == "ALCARECOSIM" ];then
-    cat >> tmp/alcareco.cfg <<EOF
-total_number_of_events = -1
-events_per_job=${EVENTS_PER_JOB}
-EOF
-#if [ "$TYPE" == "ALCARECOSIM" ];then
-#    cat >> ${crabFile} <<EOF
-#total_number_of_events=${NJOBS}
-#number_of_jobs=${NJOBS}
-#EOF
-else
-    cat >> ${crabFile} <<EOF
-total_number_of_lumis = -1
-lumis_per_job=${LUMIS_PER_JOBS}
-EOF
-fi
-
-if [ -n "${DEVEL_RELEASE}" ]; then
-cat >> ${crabFile} <<EOF
-allow_NonProductionCMSSW = 1
-EOF
-fi
-
-###
-cat >> ${crabFile} <<EOF
-get_edm_output=1
-check_user_remote_dir=1
-use_parent=${USEPARENT}
-
-[USER]
-ui_working_dir=$UI_WORKING_DIR
-return_data = 0
-copy_data = 1
-local_stage_out = 1
-storage_element=$STORAGE_ELEMENT
-user_remote_dir=$USER_REMOTE_DIR
-storage_path=$STORAGE_PATH
-EOF
-
-#if [ "$TYPE" == "ALCARECOSIM" ];then
-#   cat >> ${crabFile} <<EOF
-#script_exe=initdata.sh
-#additional_input_files=${cert}
-#EOF
-#fi
-
-cat >> ${crabFile} <<EOF
-thresholdLevel=80
-eMail = shervin@cern.ch
-
-[GRID]
-rb = HC
-rb = CERN
-proxy_server = myproxy.cern.ch
-#se_white_list=$WHITELIST
-se_black_list=$BLACKLIST
-
+config.Data.publication = False
+config.Data.publishDataName = '${JOBNAME}'
+#config.Site.storageSite = '$STORAGE_ELEMENT'
+config.Site.storageSite = "T2_CH_CERN"
 EOF
 
 
 
-if [ -n "${CREATE}" ];then
-    crab -cfg ${crabFile} -create || exit 1
+###if [ -n "${CREATE}" ];then
+###    crab c ${crabFile} create || exit 1
 
  #if [ "$TYPE" == "ALCARECOSIM" ];then
  #  mv _tmp_argument.xml ${UI_WORKING_DIR}/share/arguments.xml 
  #fi 
  
-./scripts/splittedOutputFilesCrabPatch.sh -u ${UI_WORKING_DIR}
+echo "debug 4"
+###./scripts/splittedOutputFilesCrabPatch.sh -u ${UI_WORKING_DIR}
 #crabMonitorID.sh -r ${RUNRANGE} -n $DATASETNAME -u ${UI_WORKING_DIR} --type ALCARECO
 
  #clean up extral lines
  #awk ' /file_list=\"\"/ &&c++>0 {next} 1 ' ${UI_WORKING_DIR}/job/CMSSW.sh > _tmp_CMSSW.sh
  #chmod +x _tmp_CMSSW.sh
  #mv _tmp_CMSSW.sh ${UI_WORKING_DIR}/job/CMSSW.sh
-fi
+###fi
 
+echo "debug 5"
 if [ -n "$SUBMIT" ]; then
-    crab -c ${UI_WORKING_DIR} -submit all
+    crab submit -c $crabFile #-d ${UI_WORKING_DIR}
 elif [ -z "${CHECK}" ];then
     echo "##############################"
     echo "To start the crab jobs:"
@@ -332,8 +274,10 @@ elif [ -z "${CHECK}" ];then
 fi
 
 
+echo "debug 6"
 if [ -n "${CHECK}" ];then
-    resubmitCrab.sh -u ${UI_WORKING_DIR}
+    crab status crab_projects/crab_${JOBNAME} 
+		#resubmitCrab.sh -u ${UI_WORKING_DIR}
     if [ ! -e "${UI_WORKING_DIR}/res/finished" ];then
 	#echo $dir >> tmp/$TAG.log 
 	echo "[STATUS] Unfinished ${UI_WORKING_DIR}"

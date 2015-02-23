@@ -15,7 +15,7 @@ checkInitECALELF(){
 		echo "source $CMSSW_BASE/src/Calibration/initCmsEnv.csh" >> /dev/stderr
 		;;
 	esac
-	exit 1
+#	exit 1
     fi
 }
 
