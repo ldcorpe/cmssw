@@ -37,10 +37,12 @@ public:
 					       float jec, const reco::Vertex *, const reco::VertexCollection &,
 					       bool calculateMva=false);
 
-	PileupJetIdentifier computeIdVariables(const pat::Jet * jet,
+	PileupJetIdentifier computeIdVariables(const pat::Jet *,
+	               const std::vector<edm::Ptr<pat::PackedCandidate> >PtrCandAll,
 					       const edm::Ptr<reco::Vertex>,
 		           	 const std::vector<std::pair<edm::Ptr<reco::Vertex>, edm::Ptr<pat::PackedCandidate> > >&	,
-					       bool calculateMva);
+					       bool calculateMva=false,
+								 bool useConeBetaStar=false);
 	
 	void set(const PileupJetIdentifier &);
 	PileupJetIdentifier computeMva();
@@ -79,6 +81,7 @@ protected:
 	Int_t   version_;
 	Float_t impactParTkThreshod_;
 	bool    cutBased_;
+	bool useConeBetaStar_;
 	Float_t mvacut_     [3][4][4]; //Keep the array fixed
 	Float_t rmsCut_     [3][4][4]; //Keep the array fixed
 	Float_t betaStarCut_[3][4][4]; //Keep the array fixed
