@@ -1,24 +1,28 @@
 #!/bin/bash
 source $CMSSW_BASE/src/Calibration/EcalAlCaRecoProducers/scripts/prodFunctions.sh
-
 ############################### OPTIONS
 #------------------------------ default
 SKIM=none
+ALCATYPE="ALCA:EcalCalZElectron"
 USEPARENT=0
 SCHEDULER=caf
 USESERVER=1
 TYPE=ALCARECO
-LUMIS_PER_JOBS=200  # 4000 for ZSkim events is good, WSkim events /=4, SingleElectron /=10
+LUMIS_PER_JOBS=200 # 4000 for ZSkim events is good, WSkim events /=4, SingleElectron /=10
 EVENTS_PER_JOB=150000 #150k for ZSkim DYtoEE powheg
 BLACKLIST=T2_EE_Estonia
 CREATE=yes
 SUBMIT=yes
 OUTPUTFILE=alcareco
-crabFile=tmp/alcareco.cfg
+crab2File=tmp/alcareco.cfg
+crab3File=tmp/alcareco_cfg.py
+crabFile=${crab3File}
 DOTREE=0
 NJOBS=100
 OUTFILES="ntuple.root"
-
+JOBNAME="-SAMPLE-RUNRANGE-JSON"
+PUBLISH="False"
+CRABVERSION=3
 usage(){
     echo "`basename $0` options"
     echo "---------- provided by parseDatasetFile (all mandatory)"
@@ -31,17 +35,19 @@ usage(){
     echo "---------- optional"
     echo "    --isMC: specify is the dataset is MC"
     echo "    -s skim: ZSkim, WSkim, EleSkim"
-    echo "    --scheduler caf,lsf,remoteGlidein (=${SCHEDULER})"
+    echo "    --scheduler caf,lsf,remoteGlidein (=${SCHEDULER})  (only for crab2)"
     echo "    --createOnly"
     echo "    --submitOnly"
     echo "    --check"
     echo "    --json_name jsonName: additional name in the folder structure to keep track of the used json"
     echo "    --json jsonFile.root: better to not use a json file for the alcareco production"
-    echo "    --doTree" # arg (=${DOTREE}): 0=no tree, 1=standard tree only, 2=extratree-only, 3=standard+extra trees"
-    echo "    --njobs nJobs : number of jobs, an integer"
+    echo "    --doTree (NOT CURRENTLY SUPPORTED)" # arg (=${DOTREE}): 0=no tree, 1=standard tree only, 2=extratree-only, 3=standard+extra trees"
+    echo "    --njobs nJobs : number of jobs, an integer (only crab2)"
+	echo " --publish : Publish output dataset on DAS"
     echo "----------"
     echo "    --tutorial: tutorial mode, produces only one sample in you user area"
     echo "    --develRelease: CRAB do not check if the CMSSW version is in production (only if you are sure what you are doing)"
+	echo "----------"
 }
 
 
@@ -49,7 +55,7 @@ usage(){
 
 #------------------------------ parsing
 # options may be followed by one colon to indicate they have a required argument
-if ! options=$(getopt -u -o hd:n:s:r: -l help,datasetpath:,datasetname:,skim:,runrange:,store:,remote_dir:,dbs_url:,scheduler:,isMC,submit,white_list:,black_list:,createOnly,submitOnly,check,json:,json_name:,doTree,doExtraCalibTree,doEleIDTree,doPdfSystTree,noStandardTree,njobs:,tutorial,develRelease -- "$@")
+if ! options=$(getopt -u -o hd:n:s:r: -l help,datasetpath:,datasetname:,skim:,runrange:,store:,remote_dir:,dbs_url:,scheduler:,isMC,submit,white_list:,black_list:,createOnly,submitOnly,check,json:,jobname:,doTree,doExtraCalibTree,doEleIDTree,doPdfSystTree,noStandardTree,njobs:,publish,tutorial,develRelease -- "$@")
 then
     # something went wrong, getopt will put out an error message for us
     exit 1
@@ -86,13 +92,16 @@ do
 	--noStandardTree) let DOTREE=${DOTREE}-1; OUTFILES=`echo ${OUTFILES} | sed 's|ntuple.root,||'`;;
 
         --njobs) NJOBS=$2; shift; echo "[OPTION] Request njobs = ${NJOBS}";;
-    (--) shift; break;;
-    (-*) echo "$0: error - unrecognized option $1" 1>&2; usage >> /dev/stderr; exit 1;;
-    (*) break;;
-    esac
-    shift
+		--jobname) JOB=$2; shift;;
+		--publish) echo "[OPTION] output will be published on DAS"; PUBLISH="True" ;;
+		(--) shift; break;;
+		(-*) echo "$0: error - unrecognized option $1" 1>&2; usage >> /dev/stderr; exit 1;;
+		(*) break;;
+	esac
+	shift
 done
 
+JOBNAME="${DATASETNAME}_${RUNRANGE}_${JOB}"
 #------------------------------ checking
 if [ -z "$DATASETPATH" ];then 
     echo "[ERROR] DATASETPATH not defined" >> /dev/stderr
@@ -106,7 +115,6 @@ if [ -z "$DATASETNAME" ];then
     exit 1
 else
     echo "[INFO] DATASETNAME=${DATASETNAME}"
-
 fi
 
 if [ -z "$RUNRANGE" ];then 
@@ -121,7 +129,6 @@ if [ -z "$STORAGE_ELEMENT" ];then
     exit 1
 fi
 
-
 if [ -z "$USER_REMOTE_DIR_BASE" ];then 
     echo "[ERROR] USER_REMOTE_DIR_BASE not defined" >> /dev/stderr
     usage >> /dev/stderr
@@ -129,7 +136,6 @@ if [ -z "$USER_REMOTE_DIR_BASE" ];then
 else
     echo "[INFO] USER_REMOTE_DIR_BASE=${USER_REMOTE_DIR_BASE}"
 fi
-
 
 if [ -n "${TUTORIAL}" ];then
     case $DATASETPATH in
@@ -151,9 +157,7 @@ if [ -n "${TUTORIAL}" ];then
 fi
 
 ###############################
-
 #------------------------------
-
 if [ -z "${SKIM}" ];then
     case $DATASETPATH in
 	*DoubleElectron*)
@@ -177,15 +181,17 @@ case $DATASETPATH in
 	;;
 esac
 
+======= end
 case $SKIM in
-    ZSkim)
-	;;
-    none) EVENTS_PER_JOB=20000;;
-    *)
-	EVENTS_PER_JOB=20000
-	;;
+	ZSkim)
+		ALCATYPE="ALCA:EcalCalZElectron"
+		;;
+	none) EVENTS_PER_JOB=20000;;
+	*)
+		ALCATYPE="ALCA:EcalCalWElectron"
+		EVENTS_PER_JOB=20000
+		;;
 esac
-
 
 #Setting the ENERGY variable
 setEnergy $DATASETPATH
@@ -208,10 +214,21 @@ fi
 #  NJOBS=`grep "</Job>" _tmp_argument.xml | wc -l`
 #fi
 
+if [ -z "${CHECK}" ];then
+echo "[INFO] Preparing job: ${JOBNAME}"
+echo "[INFO] Storage Element $STORAGE_ELEMENT"
+echo "[INFO Run Range ${RUNRANGE}"
+
 OUTFILES=`echo $OUTFILES | sed 's|^,||'`
 
+echo "[INFO] Generating CMSSW configuration, using:"
+echo "[INFO]  cmsDriver.py reco -s ${ALCATYPE}   -n 10--data --conditions=auto:run2_data --nThreads=4 --customise_commands=\"process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))\" --no_exec " 
+
+cmsDriver.py reco -s ${ALCATYPE} -n 10 --data --conditions=auto:run2_data --nThreads=4 --customise_commands="process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))" --no_exec
+
+echo "[INFO] Generating CRAB3 configuration"
 #==============================
-cat > ${crabFile} <<EOF
+cat > ${crab2File} <<EOF
 [CRAB]
 #use_server = $USESERVER
 jobtype = cmssw
@@ -222,17 +239,42 @@ queue = 1nd
 [CAF]
 queue = cmscaf1nd
 resource = type==SLC5_64
+EOF
+cat > ${crab3File} <<EOF
+from CRABClient.UserUtilities import config
+config = config()
+config.General.requestName = '${JOBNAME}'
+config.General.workArea = 'crab_projects'
+config.JobType.pluginName = 'Analysis'
+config.JobType.psetName = 'reco_ALCA.py'
+#config.JobType.pyCfgParams = ['output=${OUTPUTFILE}.root', 'skim=${SKIM}', 'type=$TYPE','doTree=${DOTREE}', 'jsonFile=${JSONFILE}', 'secondaryOutput=ntuple.root', 'isCrab=1']
+config.JobType.allowNonProductionCMSSW = True
+config.Data.inputDataset = '${DATASETPATH}'
+config.Data.inputDBS = 'global'
+config.Data.splitting = 'LumiBased'
+config.Data.lumiMask = '${JSONFILE}'
+config.Data.unitsPerJob = 10
+config.Data.runRange = '${RUNRANGE}'
+config.Data.outLFN = '/store/group/dpg_ecal/alca_ecalcalib/${USER}/${JOBNAME}'
+config.Data.publication = ${PUBLISH}
+config.Data.publishDataName = '${JOBNAME}'
+#config.Site.storageSite = '$STORAGE_ELEMENT'
+config.Site.storageSite = "T2_CH_CERN"
+EOF
 
+echo "CMSSW config created: reco_ALCA.py"
+echo "CRAB3 config created: ${crab3File}"
 
+cat > ${crab2File} <<EOF
 [CMSSW]
 datasetpath=${DATASETPATH}
 use_dbs3  = 1
 EOF
 if [ -n "${DBS_URL}" ];then
-    echo "dbs_url=${DBS_URL}" >> tmp/alcareco.cfg
+    echo "dbs_url=${DBS_URL}" >> ${crab2File}
 fi
 
-cat >> ${crabFile} <<EOF
+cat >> ${crab2File} <<EOF
 pset=python/alcaSkimming.py
 pycfg_params=output=${OUTPUTFILE}.root skim=${SKIM} type=$TYPE doTree=${DOTREE} jsonFile=${JSONFILE} secondaryOutput=ntuple.root isCrab=1 
 
@@ -241,36 +283,38 @@ split_by_run=0
 EOF
 
 if [ "$DOTREE" -gt "0" ]; then
-   cat >> ${crabFile} <<EOF
+   cat >> ${crab2File} <<EOF
 output_file=${OUTFILES}
 EOF
 fi 
 
 if [ "$TYPE" == "ALCARECOSIM" ];then
-    cat >> tmp/alcareco.cfg <<EOF
+    cat >> ${crab2File} <<EOF
 total_number_of_events = -1
 events_per_job=${EVENTS_PER_JOB}
 EOF
-#if [ "$TYPE" == "ALCARECOSIM" ];then
-#    cat >> ${crabFile} <<EOF
 #total_number_of_events=${NJOBS}
 #number_of_jobs=${NJOBS}
 #EOF
 else
-    cat >> ${crabFile} <<EOF
+    cat >> ${crab2File} <<EOF
 total_number_of_lumis = -1
 lumis_per_job=${LUMIS_PER_JOBS}
 EOF
+
+if [ -n "${CREATE}" ] && [ -z "${SUBMIT}" ];then
+echo "[INFO] to submit please use option --submitOnly"
+exit 1
 fi
 
 if [ -n "${DEVEL_RELEASE}" ]; then
-cat >> ${crabFile} <<EOF
+cat >> ${crab2File} <<EOF
 allow_NonProductionCMSSW = 1
 EOF
-fi
+
 
 ###
-cat >> ${crabFile} <<EOF
+cat >> ${crab2File} <<EOF
 get_edm_output=1
 check_user_remote_dir=1
 use_parent=${USEPARENT}
@@ -290,9 +334,14 @@ EOF
 #script_exe=initdata.sh
 #additional_input_files=${cert}
 #EOF
+#if [ ! -e "${UI_WORKING_DIR}/res/finished" ];then
+#echo $dir >> tmp/$TAG.log
+#echo "[STATUS] Unfinished ${UI_WORKING_DIR}"
+# elif [ "$TYPE" == "ALCARECOSIM" ];then
+# mergeOutput.sh -u ${UI_WORKING_DIR} -g PUDumper --noRemove --merged_remote_dir=/afs/cern.ch/cms/CAF/CMSALCA/ALCA_ECALCALIB/ECALELF/puFiles/
 #fi
 
-cat >> ${crabFile} <<EOF
+cat >> ${crab2File} <<EOF
 thresholdLevel=80
 eMail = shervin@cern.ch
 
@@ -308,7 +357,14 @@ EOF
 
 
 if [ -n "${CREATE}" ];then
-    crab -cfg ${crabFile} -create || exit 1
+	case ${CRABVERSION} in
+		2)
+			crab -cfg ${crab2File} -create || exit 1
+			;;
+		3)
+			;;
+	esac
+fi
 
  #if [ "$TYPE" == "ALCARECOSIM" ];then
  #  mv _tmp_argument.xml ${UI_WORKING_DIR}/share/arguments.xml 
@@ -321,10 +377,19 @@ if [ -n "${CREATE}" ];then
  #awk ' /file_list=\"\"/ &&c++>0 {next} 1 ' ${UI_WORKING_DIR}/job/CMSSW.sh > _tmp_CMSSW.sh
  #chmod +x _tmp_CMSSW.sh
  #mv _tmp_CMSSW.sh ${UI_WORKING_DIR}/job/CMSSW.sh
+# echo "mergeOutput.sh -u ${UI_WORKING_DIR} -n ${DATASETNAME} -r ${RUNRANGE}"
+# else
+# mergeOutput.sh -u ${UI_WORKING_DIR} -n ${DATASETNAME} -r ${RUNRANGE}
 fi
 
 if [ -n "$SUBMIT" ]; then
-    crab -c ${UI_WORKING_DIR} -submit all
+	case ${CRABVERSION} in
+		2)     crab -c ${UI_WORKING_DIR} -submit all;;
+		3)
+			echo "[INFO] submitting to CRAB3"
+			crab submit -c $crabFile 
+			;;
+	esac
 elif [ -z "${CHECK}" ];then
     echo "##############################"
     echo "To start the crab jobs:"
@@ -333,17 +398,25 @@ fi
 
 
 if [ -n "${CHECK}" ];then
-    resubmitCrab.sh -u ${UI_WORKING_DIR}
-    if [ ! -e "${UI_WORKING_DIR}/res/finished" ];then
+	case ${CRABVERSION} in
+		2)
+			resubmitCrab.sh -u ${UI_WORKING_DIR}
+			if [ ! -e "${UI_WORKING_DIR}/res/finished" ];then
 	#echo $dir >> tmp/$TAG.log 
-	echo "[STATUS] Unfinished ${UI_WORKING_DIR}"
+				echo "[STATUS] Unfinished ${UI_WORKING_DIR}"
 #    elif [ "$TYPE" == "ALCARECOSIM" ];then
 #	mergeOutput.sh -u ${UI_WORKING_DIR} -g PUDumper --noRemove --merged_remote_dir=/afs/cern.ch/cms/CAF/CMSALCA/ALCA_ECALCALIB/ECALELF/puFiles/
     #fi
 #    echo "mergeOutput.sh -u ${UI_WORKING_DIR} -n ${DATASETNAME} -r ${RUNRANGE}"
 #    else
 #	mergeOutput.sh -u ${UI_WORKING_DIR} -n ${DATASETNAME} -r ${RUNRANGE}
-    fi   
+			fi 
+			;;
+		3)
+			crab status crab_projects/crab_${JOBNAME}
+			;;
+	esac
+
 fi
 
 ################
