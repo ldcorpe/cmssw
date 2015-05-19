@@ -8,6 +8,7 @@ USEPARENT=0
 SCHEDULER=caf
 USESERVER=1
 TYPE=ALCARECO
+ISMC="no"
 LUMIS_PER_JOBS=200 # 4000 for ZSkim events is good, WSkim events /=4, SingleElectron /=10
 EVENTS_PER_JOB=150000 #150k for ZSkim DYtoEE powheg
 BLACKLIST=T2_EE_Estonia
@@ -23,6 +24,8 @@ OUTFILES="ntuple.root"
 JOBNAME="-SAMPLE-RUNRANGE-JSON"
 PUBLISH="False"
 CRABVERSION=3
+FROMRAW=no
+CMSSWCONFIG="reco_ALCA.py"
 usage(){
     echo "`basename $0` options"
     echo "---------- provided by parseDatasetFile (all mandatory)"
@@ -34,16 +37,19 @@ usage(){
     echo "    --dbs_url url: for not global dbs (user production)"
     echo "---------- optional"
     echo "    --isMC: specify is the dataset is MC"
-    echo "    -s skim: ZSkim, WSkim, EleSkim"
+    echo "    -s or --skim: ZSkim, WSkim, EleSkim"
+    echo "    --type: ALCARECO (or EcalCal), ALCARAW (OrEcalUncal). Determines if you produce ALCARECO (EcalCal*.root) or ALCARAW (EcalUncal*.root) files."
     echo "    --scheduler caf,lsf,remoteGlidein (=${SCHEDULER})  (only for crab2)"
-    echo "    --createOnly"
-    echo "    --submitOnly"
-    echo "    --check"
-    echo "    --json_name jsonName: additional name in the folder structure to keep track of the used json"
-    echo "    --json jsonFile.root: better to not use a json file for the alcareco production"
+    echo "    --createOnly. Only create the CMSSW and CRAB configuration files, do not submit"
+    echo "    --submitOnly. Only submit the already created configuration files."
+    echo "    --check. Check on the status of already submited CRAB jobs"
+    echo "    --jobname name. Name of your job for crab."
+    echo "    --json_name jsonName. Additional name in the folder structure to keep track of the used json"
+    echo "    --json jsonFile.root:. Specifiy a run/lumi range. Better to not use a json file for the alcareco production"
     echo "    --doTree (NOT CURRENTLY SUPPORTED)" # arg (=${DOTREE}): 0=no tree, 1=standard tree only, 2=extratree-only, 3=standard+extra trees"
     echo "    --njobs nJobs : number of jobs, an integer (only crab2)"
-	echo " --publish : Publish output dataset on DAS"
+  	echo "    --publish : Publish output dataset on DAS"
+  	echo "    --fromRAW : Use this option is you are running on RAW, so that RECO,RAW2DIGI steps are run first. (Expert Only)"
     echo "----------"
     echo "    --tutorial: tutorial mode, produces only one sample in you user area"
     echo "    --develRelease: CRAB do not check if the CMSSW version is in production (only if you are sure what you are doing)"
@@ -55,7 +61,7 @@ usage(){
 
 #------------------------------ parsing
 # options may be followed by one colon to indicate they have a required argument
-if ! options=$(getopt -u -o hd:n:s:r: -l help,datasetpath:,datasetname:,skim:,runrange:,store:,remote_dir:,dbs_url:,scheduler:,isMC,submit,white_list:,black_list:,createOnly,submitOnly,check,json:,jobname:,doTree,doExtraCalibTree,doEleIDTree,doPdfSystTree,noStandardTree,njobs:,publish,tutorial,develRelease -- "$@")
+if ! options=$(getopt -u -o hd:n:s:r: -l help,datasetpath:,datasetname:,skim:,runrange:,store:,remote_dir:,dbs_url:,scheduler:,isMC,type:,submit,white_list:,black_list:,createOnly,submitOnly,check,json:,jobname:,doTree,doExtraCalibTree,doEleIDTree,doPdfSystTree,noStandardTree,njobs:,publish,fromRAW,tutorial,develRelease -- "$@")
 then
     # something went wrong, getopt will put out an error message for us
     exit 1
@@ -75,10 +81,11 @@ do
 	--remote_dir) USER_REMOTE_DIR_BASE=$2; shift;;
 	--dbs_url)    DBS_URL=$2; shift;;
 	--scheduler) SCHEDULER=$2; shift;;
-	--isMC) TYPE=ALCARECOSIM;;
+	--isMC) echo "[OPTION] data is MC" ; ISMC="yes" ;;
+	--type) TYPE=$2 ; shift;;
 	--white_list) WHITELIST=$2; shift;;
 	--black_list) BLACKLIST=$2; shift;;
-	--createOnly) unset SUBMIT;;
+	--createOnly) unset SUBMIT; unset CHECK;;
 	--submitOnly) echo "[OPTION] submitOnly"; unset CREATE;;
 	--check)      echo "[OPTION] checking jobs"; unset CREATE; unset SUBMIT; CHECK=y; EXTRAOPTION="--check";;
  	--json) JSONFILE=$2;  shift;;
@@ -91,16 +98,16 @@ do
 	--doPdfSystTree) let DOTREE=${DOTREE}+8;;
 	--noStandardTree) let DOTREE=${DOTREE}-1; OUTFILES=`echo ${OUTFILES} | sed 's|ntuple.root,||'`;;
 
-        --njobs) NJOBS=$2; shift; echo "[OPTION] Request njobs = ${NJOBS}";;
+    --njobs) NJOBS=$2; shift; echo "[OPTION] Request njobs = ${NJOBS}";;
 		--jobname) JOB=$2; shift;;
 		--publish) echo "[OPTION] output will be published on DAS"; PUBLISH="True" ;;
+		--fromRAW) echo "[OPTION] fromRAW: first perform RAW2DIGI,RECO step on input files." ; FROMRAW="yes";;
 		(--) shift; break;;
 		(-*) echo "$0: error - unrecognized option $1" 1>&2; usage >> /dev/stderr; exit 1;;
 		(*) break;;
 	esac
 	shift
 done
-
 JOBNAME="${DATASETNAME}_${RUNRANGE}_${JOB}"
 #------------------------------ checking
 if [ -z "$DATASETPATH" ];then 
@@ -155,7 +162,6 @@ if [ -n "${TUTORIAL}" ];then
     echo "= --> Please, remember to remove it after the tests (ask to shervin@cern.ch)"
     /bin/sleep 5s
 fi
-
 ###############################
 #------------------------------
 if [ -z "${SKIM}" ];then
@@ -181,17 +187,40 @@ case $DATASETPATH in
 	;;
 esac
 
-======= end
+if [ "$TYPE" == "EcalCal" ] || [ "$TYPE" == "ALCARECO" ]; then
 case $SKIM in
 	ZSkim)
 		ALCATYPE="ALCA:EcalCalZElectron"
 		;;
 	none) EVENTS_PER_JOB=20000;;
-	*)
+	WSkim)
 		ALCATYPE="ALCA:EcalCalWElectron"
 		EVENTS_PER_JOB=20000
 		;;
 esac
+fi
+
+if [ "$TYPE" == "EcalUncal" ] || [ "$TYPE" == "ALCARAW" ]; then
+case $SKIM in
+	ZSkim)
+		ALCATYPE="ALCA:EcalUncalZElectron"
+		;;
+	none) EVENTS_PER_JOB=20000;;
+	WSkim)
+		ALCATYPE="ALCA:EcalUncalWElectron"
+		EVENTS_PER_JOB=20000
+		;;
+esac
+fi
+if [ "$FROMRAW" == "yes" ]; then
+RECOPATH="RAW2DIGI,RECO,"
+CMSSWCONFIG="reco_RAW2DIGI_RECO_ALCA.py"
+fi
+
+
+if [ "$ISMC" == "no" ]; then
+DATA="--data"
+fi
 
 #Setting the ENERGY variable
 setEnergy $DATASETPATH
@@ -214,7 +243,7 @@ fi
 #  NJOBS=`grep "</Job>" _tmp_argument.xml | wc -l`
 #fi
 
-if [ -z "${CHECK}" ];then
+if [ -z "${CHECK}" ] || [ -n "${CREATE}" ];then
 echo "[INFO] Preparing job: ${JOBNAME}"
 echo "[INFO] Storage Element $STORAGE_ELEMENT"
 echo "[INFO Run Range ${RUNRANGE}"
@@ -222,9 +251,9 @@ echo "[INFO Run Range ${RUNRANGE}"
 OUTFILES=`echo $OUTFILES | sed 's|^,||'`
 
 echo "[INFO] Generating CMSSW configuration, using:"
-echo "[INFO]  cmsDriver.py reco -s ${ALCATYPE}   -n 10--data --conditions=auto:run2_data --nThreads=4 --customise_commands=\"process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))\" --no_exec " 
+echo "[INFO]  cmsDriver.py reco -s ${RECOPATH}${ALCATYPE} -n 10 ${DATA} --conditions=auto:run2_data --nThreads=4 --customise_commands=\"process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))\" --no_exec " 
 
-cmsDriver.py reco -s ${ALCATYPE} -n 10 --data --conditions=auto:run2_data --nThreads=4 --customise_commands="process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))" --no_exec
+cmsDriver.py reco -s ${RECOPATH}${ALCATYPE} -n 10 ${DATA} --conditions=auto:run2_data --nThreads=4 --customise_commands="process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))" --no_exec
 
 echo "[INFO] Generating CRAB3 configuration"
 #==============================
@@ -246,24 +275,25 @@ config = config()
 config.General.requestName = '${JOBNAME}'
 config.General.workArea = 'crab_projects'
 config.JobType.pluginName = 'Analysis'
-config.JobType.psetName = 'reco_ALCA.py'
+config.JobType.psetName = '${CMSSWCONFIG}'
 #config.JobType.pyCfgParams = ['output=${OUTPUTFILE}.root', 'skim=${SKIM}', 'type=$TYPE','doTree=${DOTREE}', 'jsonFile=${JSONFILE}', 'secondaryOutput=ntuple.root', 'isCrab=1']
-config.JobType.allowNonProductionCMSSW = True
+config.JobType.allowUndistributedCMSSW = True
 config.Data.inputDataset = '${DATASETPATH}'
 config.Data.inputDBS = 'global'
 config.Data.splitting = 'LumiBased'
 config.Data.lumiMask = '${JSONFILE}'
 config.Data.unitsPerJob = 10
 config.Data.runRange = '${RUNRANGE}'
-config.Data.outLFN = '/store/group/dpg_ecal/alca_ecalcalib/${USER}/${JOBNAME}'
+config.Data.outLFNDirBase = '/store/group/dpg_ecal/alca_ecalcalib/${USER}/${JOBNAME}'
 config.Data.publication = ${PUBLISH}
 config.Data.publishDataName = '${JOBNAME}'
 #config.Site.storageSite = '$STORAGE_ELEMENT'
 config.Site.storageSite = "T2_CH_CERN"
+#config.Site.storageSite = "T2_UK_London_IC"
 EOF
 
-echo "CMSSW config created: reco_ALCA.py"
-echo "CRAB3 config created: ${crab3File}"
+echo "--> CMSSW config created: ${CMSSWCONFIG}"
+echo "--> CRAB3 config created: ${crab3File}"
 
 cat > ${crab2File} <<EOF
 [CMSSW]
@@ -354,6 +384,8 @@ se_black_list=$BLACKLIST
 
 EOF
 
+fi
+fi
 
 
 if [ -n "${CREATE}" ];then
@@ -414,6 +446,7 @@ if [ -n "${CHECK}" ];then
 			;;
 		3)
 			crab status crab_projects/crab_${JOBNAME}
+			echo "crab status crab_projects/crab_${JOBNAME}"
 			;;
 	esac
 
