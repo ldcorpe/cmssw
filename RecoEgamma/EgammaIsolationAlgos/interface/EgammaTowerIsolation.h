@@ -158,7 +158,6 @@ inline
 void
 EgammaTowerIsolationNew<NC>::compute(bool et, Sum &sum, reco::SuperCluster const & sc,  CaloTowerDetId const * first,  CaloTowerDetId const * last) const {
   if (nt==0) return;
-
   etiStat::Count::count.comp++;
 
   float candEta = sc.eta();
@@ -167,21 +166,30 @@ EgammaTowerIsolationNew<NC>::compute(bool et, Sum &sum, reco::SuperCluster const
   
   auto lb = std::lower_bound(eta,eta+nt,candEta-maxEta);
   auto ub = std::upper_bound(lb,eta+nt,candEta+maxEta);
-  uint32_t il = lb-eta;
+	
+  
+	uint32_t il = lb-eta;
   uint32_t iu = std::min(nt,uint32_t(ub-eta+1));
   
   etiStat::Count::count.span += (iu-il);
 
   bool ok[iu-il];
-  for (std::size_t i=il;i!=iu; ++i)
-    ok[i-il] = (std::find(first,last,id[i])==last);
+	
+	std::cout << " debug a lb " << lb  << ", ub " << ub<< ", nt " << nt << ", iu-il " << iu-il << " ok " <<std::endl;
   
+	for (std::size_t i=il;i!=iu; ++i){
+    ok[i-il] = (std::find(first,last,id[i])==last);
+	//	bool lc = ok[i-il];
+  
+	//std::cout << " debug b -  ok[i-il] " << lc << std::endl;
+	}
 
 
   // should be restricted in eta....
   for (std::size_t i=il;i!=iu; ++i) {
     float dr2 = reco::deltaR2(candEta,candPhi,eta[i], phi[i]);
     float tt = et ? st[i] : 1.f;
+	//std::cout << " debug b2 -  dr2 " << dr2 << ", tt " << tt << " NCuts " << NCuts << std::endl;
     for (std::size_t j=0; j!=NCuts; ++j) {
       if (dr2<extRadius2_[j]) {
 	if (dr2>=intRadius2_[j]) {
@@ -195,6 +203,7 @@ EgammaTowerIsolationNew<NC>::compute(bool et, Sum &sum, reco::SuperCluster const
       }
     }
   }
+	std::cout << " debug c "  << sum.h2[0]<< std::endl;
 }
 
 class EgammaTowerIsolation {
