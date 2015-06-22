@@ -18,6 +18,7 @@
 #include "DataFormats/TrackReco/interface/Track.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "RecoEgamma/EgammaIsolationAlgos/interface/EgammaTrackSelector.h"
+#include "DataFormats/EgammaReco/interface/SuperCluster.h"
 
 
 
@@ -115,6 +116,7 @@ class PhotonTkIsolation {
   ~PhotonTkIsolation() ;
   //methods
 
+  std::pair<int,float>getIso(const reco::SuperCluster*, reco::Vertex) const ;
   std::pair<int,float>getIso(const reco::Candidate*) const ;
   
 
